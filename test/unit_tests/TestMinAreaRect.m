@@ -1,15 +1,24 @@
 classdef TestMinAreaRect
     %TestMinAreaRect
+
     properties (Constant)
-        p = {[0,0],[1,0],[2,2],[3,3],[3,4]};
+        pts = [0 0; 1 0; 2 2; 3 3; 3 4];
     end
-    
+
     methods (Static)
         function test_1
-            rct = cv.minAreaRect(TestMinAreaRect.p);
+            box = cv.minAreaRect(TestMinAreaRect.pts);
+            validateattributes(box, {'struct'}, {'scalar'});
+            assert(all(ismember({'center','size','angle'}, fieldnames(box))));
         end
-        
-        function test_error_1
+
+        function test_2
+            box = cv.minAreaRect(num2cell(TestMinAreaRect.pts,2));
+            validateattributes(box, {'struct'}, {'scalar'});
+            assert(all(ismember({'center','size','angle'}, fieldnames(box))));
+        end
+
+        function test_error_argnum
             try
                 cv.minAreaRect();
                 throw('UnitTest:Fail');
@@ -18,6 +27,5 @@ classdef TestMinAreaRect
             end
         end
     end
-    
-end
 
+end

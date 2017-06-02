@@ -1,88 +1,44 @@
 /**
  * @file ANN_MLP_.cpp
- * @brief mex interface for ANN_MLP
- * @author Kota Yamaguchi
- * @date 2012
+ * @brief mex interface for cv::ml::ANN_MLP
+ * @ingroup ml
+ * @author Kota Yamaguchi, Amro
+ * @date 2012, 2015
  */
 #include "mexopencv.hpp"
+#include "mexopencv_ml.hpp"
 using namespace std;
 using namespace cv;
+using namespace cv::ml;
 
 // Persistent objects
 namespace {
 /// Last object id to allocate
 int last_id = 0;
 /// Object container
-map<int,CvANN_MLP> obj_;
+map<int,Ptr<ANN_MLP> > obj_;
 
 /// Option values for ANN_MLP train types
-const ConstMap<std::string,int> ANN_MLPTrain = ConstMap<std::string,int>
-    ("Backprop",  CvANN_MLP_TrainParams::BACKPROP)
-    ("RProp",     CvANN_MLP_TrainParams::RPROP);
+const ConstMap<string,int> ANN_MLPTrain = ConstMap<string,int>
+    ("Backprop", cv::ml::ANN_MLP::BACKPROP)
+    ("RProp",    cv::ml::ANN_MLP::RPROP);
+
 /// Inverse option values for ANN_MLP train types
-const ConstMap<int,std::string> InvANN_MLPTrain = ConstMap<int,std::string>
-    (CvANN_MLP_TrainParams::BACKPROP, "Backprop")
-    (CvANN_MLP_TrainParams::RPROP,    "RProp");
+const ConstMap<int,string> InvANN_MLPTrain = ConstMap<int,string>
+    (cv::ml::ANN_MLP::BACKPROP, "Backprop")
+    (cv::ml::ANN_MLP::RPROP,    "RProp");
+
 /// Option values for ANN_MLP activation function
-const ConstMap<std::string,int> ActivateFunc = ConstMap<std::string,int>
-    ("Identity",  CvANN_MLP::IDENTITY)
-    ("Sigmoid",   CvANN_MLP::SIGMOID_SYM)
-    ("Gaussian",  CvANN_MLP::GAUSSIAN);
+const ConstMap<string,int> ActivateFunc = ConstMap<string,int>
+    ("Identity", cv::ml::ANN_MLP::IDENTITY)
+    ("Sigmoid",  cv::ml::ANN_MLP::SIGMOID_SYM)
+    ("Gaussian", cv::ml::ANN_MLP::GAUSSIAN);
+
 /// Inverse option values for ANN_MLP activation function
-const ConstMap<int,std::string> InvActivateFunc = ConstMap<int,std::string>
-    (CvANN_MLP::IDENTITY,   "Identity")
-    (CvANN_MLP::SIGMOID_SYM, "Sigmoid")
-    (CvANN_MLP::GAUSSIAN,   "Gaussian");
-
-/** Obtain CvANN_MLP_TrainParams object from input arguments
- * @param it iterator at the beginning of the argument vector
- * @param end iterator at the end of the argument vector
- * @return CvANN_MLP_TrainParams objects
- */
-CvANN_MLP_TrainParams getParams(vector<MxArray>::iterator it,
-                                vector<MxArray>::iterator end)
-{
-    CvANN_MLP_TrainParams params;
-    for (;it<end;it+=2) {
-        string key((*it).toString());
-        MxArray& val = *(it+1);
-        if (key=="BpDwScale")
-            params.bp_dw_scale = val.toDouble();
-        else if (key=="BpMomentScale")
-            params.bp_moment_scale = val.toDouble();
-        else if (key=="RpDw0")
-            params.rp_dw0 = val.toDouble();
-        else if (key=="RpDwPlus")
-            params.rp_dw_plus = val.toDouble();
-        else if (key=="RpDwMinus")
-            params.rp_dw_minus = val.toDouble();
-        else if (key=="RpDwMin")
-            params.rp_dw_min = val.toDouble();
-        else if (key=="RpDwMax")
-            params.rp_dw_max = val.toDouble();
-        else if (key=="TermCrit")
-            params.term_crit = val.toTermCriteria();
-        else if (key=="TrainMethod")
-            params.train_method = ANN_MLPTrain[val.toString()];
-    }
-    return params;
-}
-
-/// Field names of svm_params struct
-const char* cv_ann_mlp_train_params_fields[] = {"term_crit"};
-
-/** Create a new mxArray* from CvANN_MLPParams
- * @param params CvANN_MLPParams object
- * @return CvANN_MLPParams objects
- */
-mxArray* cvANN_MLP_TrainParamsToMxArray(const cv::ANN_MLP_TrainParams& params)
-{
-    mxArray *p = mxCreateStructMatrix(1,1,1,cv_ann_mlp_train_params_fields);
-    if (!p)
-        mexErrMsgIdAndTxt("mexopencv:error","Allocation error");
-    mxSetField(const_cast<mxArray*>(p),0,"term_crit",MxArray(TermCriteria(params.term_crit)));
-    return p;
-}
+const ConstMap<int,string> InvActivateFunc = ConstMap<int,string>
+    (cv::ml::ANN_MLP::IDENTITY,    "Identity")
+    (cv::ml::ANN_MLP::SIGMOID_SYM, "Sigmoid")
+    (cv::ml::ANN_MLP::GAUSSIAN,    "Gaussian");
 }
 
 /**
@@ -92,126 +48,258 @@ mxArray* cvANN_MLP_TrainParamsToMxArray(const cv::ANN_MLP_TrainParams& params)
  * @param nrhs number of right-hand-side arguments
  * @param prhs pointers to mxArrays in the right-hand-side
  */
-void mexFunction( int nlhs, mxArray *plhs[],
-                  int nrhs, const mxArray *prhs[] )
+void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
 {
-    if (nlhs>1)
-        mexErrMsgIdAndTxt("mexopencv:error","Wrong number of arguments");
-    
-    // Determine argument format between constructor or (id,method,...)
-    vector<MxArray> rhs(prhs,prhs+nrhs);
-    int id = 0;
-    string method;
-    if (nrhs==0) {
-        // Constructor is called. Create a new object from argument
-        obj_[++last_id] = CvANN_MLP();
+    // Check the number of arguments
+    nargchk(nrhs>=2 && nlhs<=2);
+
+    // Argument vector
+    vector<MxArray> rhs(prhs, prhs+nrhs);
+    int id = rhs[0].toInt();
+    string method(rhs[1].toString());
+
+    // Constructor is called. Create a new object from argument
+    if (method == "new") {
+        nargchk(nrhs==2 && nlhs<=1);
+        obj_[++last_id] = ANN_MLP::create();
         plhs[0] = MxArray(last_id);
+        mexLock();
         return;
     }
-    else if (rhs[0].isNumeric() && rhs[0].numel()==1 && nrhs>1) {
-        id = rhs[0].toInt();
-        method = rhs[1].toString();
-    }
-    else
-        mexErrMsgIdAndTxt("mexopencv:error","Invalid arguments");
-    
+
     // Big operation switch
-    CvANN_MLP& obj = obj_[id];
+    Ptr<ANN_MLP> obj = obj_[id];
+    if (obj.empty())
+        mexErrMsgIdAndTxt("mexopencv:error", "Object not found id=%d", id);
     if (method == "delete") {
-        if (nrhs!=2 || nlhs!=0)
-            mexErrMsgIdAndTxt("mexopencv:error","Output not assigned");
+        nargchk(nrhs==2 && nlhs==0);
         obj_.erase(id);
+        mexUnlock();
     }
     else if (method == "clear") {
-        if (nrhs!=2 || nlhs!=0)
-            mexErrMsgIdAndTxt("mexopencv:error","Wrong number of arguments");
-        obj.clear();
+        nargchk(nrhs==2 && nlhs==0);
+        obj->clear();
     }
     else if (method == "load") {
-        if (nrhs!=3 || nlhs!=0)
-            mexErrMsgIdAndTxt("mexopencv:error","Wrong number of arguments");
-        obj.load(rhs[2].toString().c_str());
-    }
-    else if (method == "save") {
-        if (nrhs!=3 || nlhs!=0)
-            mexErrMsgIdAndTxt("mexopencv:error","Wrong number of arguments");
-        obj.save(rhs[2].toString().c_str());
-    }
-    else if (method == "create") {
-        if (nrhs<3 || nlhs>0)
-            mexErrMsgIdAndTxt("mexopencv:error","Wrong number of arguments");
-        Mat layerSizes(rhs[2].toMat(CV_32S));
-        int activateFunc=CvANN_MLP::SIGMOID_SYM;
-        double fparam1=0, fparam2=0;
+        nargchk(nrhs>=3 && (nrhs%2)==1 && nlhs==0);
+        string objname;
+        bool loadFromString = false;
         for (int i=3; i<nrhs; i+=2) {
             string key(rhs[i].toString());
-            if (key=="ActivateFunc")
-                activateFunc = ActivateFunc[rhs[i+1].toString()];
-            else if (key=="FParam1")
-                fparam1 = rhs[i+1].toDouble();
-            else if (key=="FParam2")
-                fparam2 = rhs[i+1].toDouble();
+            if (key == "ObjName")
+                objname = rhs[i+1].toString();
+            else if (key == "FromString")
+                loadFromString = rhs[i+1].toBool();
             else
-                mexErrMsgIdAndTxt("mexopencv:error","Unrecognized option");
+                mexErrMsgIdAndTxt("mexopencv:error",
+                    "Unrecognized option %s", key.c_str());
         }
-        obj.create(layerSizes, activateFunc, fparam1, fparam2);
+        //obj_[id] = ANN_MLP::load(rhs[2].toString());
+        obj_[id] = (loadFromString ?
+            Algorithm::loadFromString<ANN_MLP>(rhs[2].toString(), objname) :
+            Algorithm::load<ANN_MLP>(rhs[2].toString(), objname));
+    }
+    else if (method == "save") {
+        nargchk(nrhs==3 && nlhs<=1);
+        string fname(rhs[2].toString());
+        if (nlhs > 0) {
+            // write to memory, and return string
+            FileStorage fs(fname, FileStorage::WRITE + FileStorage::MEMORY);
+            if (!fs.isOpened())
+                mexErrMsgIdAndTxt("mexopencv:error", "Failed to open file");
+            fs << obj->getDefaultName() << "{";
+            obj->write(fs);
+            fs << "}";
+            plhs[0] = MxArray(fs.releaseAndGetString());
+        }
+        else
+            // write to disk
+            obj->save(fname);
+    }
+    else if (method == "empty") {
+        nargchk(nrhs==2 && nlhs<=1);
+        plhs[0] = MxArray(obj->empty());
+    }
+    else if (method == "getDefaultName") {
+        nargchk(nrhs==2 && nlhs<=1);
+        plhs[0] = MxArray(obj->getDefaultName());
+    }
+    else if (method == "getVarCount") {
+        nargchk(nrhs==2 && nlhs<=1);
+        plhs[0] = MxArray(obj->getVarCount());
+    }
+    else if (method == "isClassifier") {
+        nargchk(nrhs==2 && nlhs<=1);
+        plhs[0] = MxArray(obj->isClassifier());
+    }
+    else if (method == "isTrained") {
+        nargchk(nrhs==2 && nlhs<=1);
+        plhs[0] = MxArray(obj->isTrained());
     }
     else if (method == "train") {
-        if (nrhs<4 || nlhs>1)
-            mexErrMsgIdAndTxt("mexopencv:error","Wrong number of arguments");
-        Mat inputs(rhs[2].toMat(CV_32F));
-        Mat outputs(rhs[3].toMat(CV_32F));
-        Mat sampleWeights, sampleIdx;
-        CvANN_MLP_TrainParams params = getParams(rhs.begin()+4,rhs.end());
-        bool updateWeights=false;
-        bool noInputScale=false;
-        bool noOutputScale=false;
+        nargchk(nrhs>=4 && (nrhs%2)==0 && nlhs<=1);
+        vector<MxArray> dataOptions;
+        int flags = 0;
         for (int i=4; i<nrhs; i+=2) {
             string key(rhs[i].toString());
-            if (key=="SampleWeights")
-                sampleWeights = rhs[i+1].toMat(CV_32F);
-            else if (key=="SampleIdx")
-                sampleIdx = rhs[i+1].toMat(CV_32S);
-            else if (key=="UpdateWeights")
-                updateWeights = rhs[i+1].toBool();
-            else if (key=="NoInputScale")
-                noInputScale = rhs[i+1].toBool();
-            else if (key=="NoOutputScale")
-                noOutputScale = rhs[i+1].toBool();
+            if (key == "Data")
+                dataOptions = rhs[i+1].toVector<MxArray>();
+            else if (key == "Flags")
+                flags = rhs[i+1].toInt();
+            else if (key == "UpdateWeights")
+                UPDATE_FLAG(flags, rhs[i+1].toBool(), ANN_MLP::UPDATE_WEIGHTS);
+            else if (key == "NoInputScale")
+                UPDATE_FLAG(flags, rhs[i+1].toBool(), ANN_MLP::NO_INPUT_SCALE);
+            else if (key == "NoOutputScale")
+                UPDATE_FLAG(flags, rhs[i+1].toBool(), ANN_MLP::NO_OUTPUT_SCALE);
+            else
+                mexErrMsgIdAndTxt("mexopencv:error",
+                    "Unrecognized option %s", key.c_str());
         }
-        int flags = (updateWeights ? CvANN_MLP::UPDATE_WEIGHTS  : 0) |
-                    (noInputScale ?  CvANN_MLP::NO_INPUT_SCALE  : 0) |
-                    (noOutputScale ? CvANN_MLP::NO_OUTPUT_SCALE : 0);
-        int x = obj.train(inputs, outputs, sampleWeights, sampleIdx, params, flags);
-        plhs[0] = MxArray(x);
+        Ptr<TrainData> data;
+        if (rhs[2].isChar())
+            data = loadTrainData(rhs[2].toString(),
+                dataOptions.begin(), dataOptions.end());
+        else
+            data = createTrainData(
+                rhs[2].toMat(CV_32F),
+                rhs[3].toMat(CV_32F),
+                dataOptions.begin(), dataOptions.end());
+        bool b = obj->train(data, flags);
+        plhs[0] = MxArray(b);
+    }
+    else if (method == "calcError") {
+        nargchk(nrhs>=4 && (nrhs%2)==0 && nlhs<=2);
+        vector<MxArray> dataOptions;
+        bool test = false;
+        for (int i=4; i<nrhs; i+=2) {
+            string key(rhs[i].toString());
+            if (key == "Data")
+                dataOptions = rhs[i+1].toVector<MxArray>();
+            else if (key == "TestError")
+                test = rhs[i+1].toBool();
+            else
+                mexErrMsgIdAndTxt("mexopencv:error",
+                    "Unrecognized option %s", key.c_str());
+        }
+        Ptr<TrainData> data;
+        if (rhs[2].isChar())
+            data = loadTrainData(rhs[2].toString(),
+                dataOptions.begin(), dataOptions.end());
+        else
+            data = createTrainData(
+                rhs[2].toMat(CV_32F),
+                rhs[3].toMat(CV_32F),
+                dataOptions.begin(), dataOptions.end());
+        Mat resp;
+        float err = obj->calcError(data, test, (nlhs>1 ? resp : noArray()));
+        plhs[0] = MxArray(err);
+        if (nlhs>1)
+            plhs[1] = MxArray(resp);
     }
     else if (method == "predict") {
-        if (nrhs<3 || nlhs>1)
-            mexErrMsgIdAndTxt("mexopencv:error","Wrong number of arguments");
-        Mat inputs(rhs[2].toMat(CV_32F)), outputs;
-        obj.predict(inputs, outputs);
-        plhs[0] = MxArray(outputs);
+        nargchk(nrhs>=3 && (nrhs%2)==1 && nlhs<=2);
+        int flags = 0;
+        for (int i=3; i<nrhs; i+=2) {
+            string key(rhs[i].toString());
+            if (key == "Flags")
+                flags = rhs[i+1].toInt();
+            else
+                mexErrMsgIdAndTxt("mexopencv:error",
+                    "Unrecognized option %s", key.c_str());
+        }
+        Mat samples(rhs[2].toMat(CV_32F)),
+            results;
+        float f = obj->predict(samples, results, flags);
+        plhs[0] = MxArray(results);
+        if (nlhs>1)
+            plhs[1] = MxArray(f);
     }
-    else if (method == "get_layer_count") {
-        if (nrhs!=2 || nlhs>1)
-            mexErrMsgIdAndTxt("mexopencv:error","Wrong number of arguments");
-        plhs[0] = MxArray(obj.get_layer_count());
+    else if (method == "getWeights") {
+        nargchk(nrhs==3 && nlhs<=1);
+        int layerIdx = rhs[2].toInt();
+        plhs[0] = MxArray(obj->getWeights(layerIdx));
     }
-    else if (method == "get_layer_sizes") {
-        if (nrhs!=2 || nlhs>1)
-            mexErrMsgIdAndTxt("mexopencv:error","Wrong number of arguments");
-        const CvMat* ls = obj.get_layer_sizes();
-        plhs[0] = MxArray(Mat(ls));
+    else if (method == "setActivationFunction" || method == "setTrainMethod") {
+        nargchk(nrhs>=3 && (nrhs%2)==1 && nlhs==0);
+        double param1 = 0,
+               param2 = 0;
+        for (int i=3; i<nrhs; i+=2) {
+            string key(rhs[i].toString());
+            if (key == "Param1")
+                param1 = rhs[i+1].toDouble();
+            else if (key == "Param2")
+                param2 = rhs[i+1].toDouble();
+            else
+                mexErrMsgIdAndTxt("mexopencv:error",
+                    "Unrecognized option %s", key.c_str());
+        }
+        if (method == "setActivationFunction") {
+            int type = ActivateFunc[rhs[2].toString()];
+            obj->setActivationFunction(type, param1, param2);
+        }
+        else {
+            int tmethod = ANN_MLPTrain[rhs[2].toString()];
+            obj->setTrainMethod(tmethod, param1, param2);
+        }
     }
-    else if (method == "get_weights") {
-        if (nrhs!=3 || nlhs>1)
-            mexErrMsgIdAndTxt("mexopencv:error","Wrong number of arguments");
-        int layer = rhs[2].toInt();
-        const Mat ls(obj.get_layer_sizes());
-        double* w = obj.get_weights(layer);
-        vector<double> wv(w,w+ls.at<int>(0,layer));
-        plhs[0] = MxArray(Mat(wv));
+    else if (method == "get") {
+        nargchk(nrhs==3 && nlhs<=1);
+        string prop(rhs[2].toString());
+        if (prop == "BackpropMomentumScale")
+            plhs[0] = MxArray(obj->getBackpropMomentumScale());
+        else if (prop == "BackpropWeightScale")
+            plhs[0] = MxArray(obj->getBackpropWeightScale());
+        else if (prop == "LayerSizes")
+            plhs[0] = MxArray(obj->getLayerSizes());
+        else if (prop == "RpropDW0")
+            plhs[0] = MxArray(obj->getRpropDW0());
+        else if (prop == "RpropDWMax")
+            plhs[0] = MxArray(obj->getRpropDWMax());
+        else if (prop == "RpropDWMin")
+            plhs[0] = MxArray(obj->getRpropDWMin());
+        else if (prop == "RpropDWMinus")
+            plhs[0] = MxArray(obj->getRpropDWMinus());
+        else if (prop == "RpropDWPlus")
+            plhs[0] = MxArray(obj->getRpropDWPlus());
+        else if (prop == "TermCriteria")
+            plhs[0] = MxArray(obj->getTermCriteria());
+        else if (prop == "TrainMethod")
+            plhs[0] = MxArray(InvANN_MLPTrain[obj->getTrainMethod()]);
+        else
+            mexErrMsgIdAndTxt("mexopencv:error",
+                "Unrecognized property %s", prop.c_str());
+    }
+    else if (method == "set") {
+        nargchk(nrhs==4 && nlhs==0);
+        string prop(rhs[2].toString());
+        if (prop == "BackpropMomentumScale")
+            obj->setBackpropMomentumScale(rhs[3].toDouble());
+        else if (prop == "BackpropWeightScale")
+            obj->setBackpropWeightScale(rhs[3].toDouble());
+        else if (prop == "LayerSizes")
+            obj->setLayerSizes(rhs[3].toMat());
+        else if (prop == "RpropDW0")
+            obj->setRpropDW0(rhs[3].toDouble());
+        else if (prop == "RpropDWMax")
+            obj->setRpropDWMax(rhs[3].toDouble());
+        else if (prop == "RpropDWMin")
+            obj->setRpropDWMin(rhs[3].toDouble());
+        else if (prop == "RpropDWMinus")
+            obj->setRpropDWMinus(rhs[3].toDouble());
+        else if (prop == "RpropDWPlus")
+            obj->setRpropDWPlus(rhs[3].toDouble());
+        else if (prop == "TermCriteria")
+            obj->setTermCriteria(rhs[3].toTermCriteria());
+        else if (prop == "TrainMethod")
+            obj->setTrainMethod(ANN_MLPTrain[rhs[3].toString()]);
+        else if (prop == "ActivationFunction")
+            obj->setActivationFunction(ActivateFunc[rhs[3].toString()]);
+        else
+            mexErrMsgIdAndTxt("mexopencv:error",
+                "Unrecognized property %s", prop.c_str());
     }
     else
-        mexErrMsgIdAndTxt("mexopencv:error","Unrecognized operation");
+        mexErrMsgIdAndTxt("mexopencv:error",
+            "Unrecognized operation %s", method.c_str());
 }

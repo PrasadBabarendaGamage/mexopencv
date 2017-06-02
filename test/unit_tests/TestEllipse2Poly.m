@@ -1,14 +1,27 @@
 classdef TestEllipse2Poly
     %TestEllipse2Poly
-    properties (Constant)
-    end
-    
+
     methods (Static)
         function test_1
-            a = cv.ellipse2Poly([64,64], [20,10]);
+            pts = cv.ellipse2Poly([64,64], [20,10]);
+            validateattributes(pts, {'numeric'}, ...
+                {'2d', 'size',[NaN 2], 'integer'});
         end
-        
-        function test_error_1
+
+        function test_2
+            pts = cv.ellipse2Poly([64,64], [20,10], 'Angle',30, ...
+                'StartAngle',15, 'EndAngle',200, 'Delta',2);
+            validateattributes(pts, {'numeric'}, ...
+                {'2d', 'size',[NaN 2], 'integer'});
+        end
+
+        function test_3
+            pts = cv.ellipse2Poly([64,64], [20,10], 'DoublePrecision',true);
+            validateattributes(pts, {'numeric'}, ...
+                {'2d', 'size',[NaN 2], 'real'});
+        end
+
+        function test_error_argnum
             try
                 cv.ellipse2Poly();
                 throw('UnitTest:Fail');
@@ -17,6 +30,5 @@ classdef TestEllipse2Poly
             end
         end
     end
-    
-end
 
+end

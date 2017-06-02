@@ -1,5 +1,6 @@
 classdef TestMorphologyEx
     %TestMorphologyEx
+
     properties (Constant)
         img = uint8([...
             0 0 0 0 0 0 0 0 0 0;...
@@ -12,23 +13,25 @@ classdef TestMorphologyEx
             0 0 0 0 0 0 0 0 0 0;...
             0 0 0 0 0 0 0 0 0 0;...
             0 0 0 0 0 0 0 0 0 0;...
-            ]);
+        ]);
     end
-    
+
     methods (Static)
         function test_1
             result = cv.morphologyEx(TestMorphologyEx.img, 'Tophat');
+            validateattributes(result, {class(TestMorphologyEx.img)}, ...
+                {'size',size(TestMorphologyEx.img)});
         end
-        
-        function test_3
-            result = cv.morphologyEx(TestMorphologyEx.img, 'Tophat', 'Anchor', [0,1]);
+
+        function test_2
+            result = cv.morphologyEx(TestMorphologyEx.img, 'Tophat', ...
+                'Element',eye(3), 'Anchor',[1,1], 'Iterations',1, ...
+                'BorderType','Constant', 'BorderValue',255);
+            validateattributes(result, {class(TestMorphologyEx.img)}, ...
+                {'size',size(TestMorphologyEx.img)});
         end
-        
-        function test_4
-            result = cv.morphologyEx(TestMorphologyEx.img, 'Tophat', 'BorderType', 'Constant');
-        end
-        
-        function test_error_1
+
+        function test_error_argnum
             try
                 cv.morphologyEx();
                 throw('UnitTest:Fail');
@@ -37,6 +40,5 @@ classdef TestMorphologyEx
             end
         end
     end
-    
-end
 
+end

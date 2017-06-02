@@ -1,31 +1,45 @@
 classdef TestGrabCut
-    % Functional Tests for grabCut
+    %TestGrabCut
+
     properties (Constant)
-        img = imread(fullfile(mexopencv.root(),'test','img001.jpg'));
+        im = fullfile(mexopencv.root(),'test','img001.jpg');
     end
-    
+
     methods (Static)
-        function test_1
-            % TEST 1: initialization with bbox must succeed
+        function test_init_rect
+            img = imread(TestGrabCut.im);
+            sz = size(img);
             bbox = [100,100,280,320]; % [x y w h]
-            res = cv.grabCut(TestGrabCut.img,bbox,'Init','Rect');
-            %imshow(TestGrabCut.img.*repmat(reshape(uint8(res==3),size(res)),[1,1,3]));
-            % grabCut has random components... it's hard to verify
+            [res, bgd, fgd] = cv.grabCut(img, bbox, 'Mode','InitWithRect');
+            validateattributes(res, {'uint8'}, {'size',sz(1:2), '<=',3});
+            validateattributes(bgd, {'double'}, {'vector', 'numel',65});
+            validateattributes(fgd, {'double'}, {'vector', 'numel',65});
         end
 
-        function test_2
-            % TEST 2: initialization with mask must succeed
+        function test_init_mask
+            img = imread(TestGrabCut.im);
+            sz = size(img);
             bbox = [100,100,200,320]; % [y x w h]
-            mask = zeros(size(TestGrabCut.img,1),size(TestGrabCut.img,2),'uint8');
-            mask(bbox(2):(bbox(2)+bbox(4)-1),bbox(1):(bbox(1)+bbox(3)-1)) = 3; % Set trimap
-            [res, bgdmodel, fgdmodel] = cv.grabCut(TestGrabCut.img,mask,'Init','Mask');
-            % grabCut has random components... it's hard to verify
+            mask = zeros(sz(1:2),'uint8');
+            mask(:) = 0;
+            mask(bbox(2):(bbox(2)+bbox(4)-1),bbox(1):(bbox(1)+bbox(3)-1)) = 3;
+            [res, bgd, fgd] = cv.grabCut(img, mask, 'Mode','InitWithMask');
+            validateattributes(res, {'uint8'}, {'size',sz(1:2), '<=',3});
+            validateattributes(bgd, {'double'}, {'vector', 'numel',65});
+            validateattributes(fgd, {'double'}, {'vector', 'numel',65});
         end
-        
-        % add more sucess cases
 
-        function test_error_1
-            % ERROR TEST 1
+        function test_eval
+            img = imread(TestGrabCut.im);
+            bbox = [100,100,280,320];
+            [res, bgd, fgd] = cv.grabCut(img, bbox, 'Mode','InitWithRect');
+            for i=1:2
+                [res, bgd, fgd] = cv.grabCut(img, res, 'Mode','Eval', ...
+                    'BgdModel',bgd, 'FgdModel',fgd, 'IterCount',1);
+            end
+        end
+
+        function test_error_argnum
             try
                 cv.grabCut();
                 throw('UnitTest:Fail');
@@ -34,50 +48,49 @@ classdef TestGrabCut
             end
         end
 
-        function test_error_2
-            % ERROR TEST 2
+        function test_error_invalid_arg
+            img = imread(TestGrabCut.im);
+            mask = zeros(size(img,1),size(img,2),'uint8');
             try
-                mask = zeros(size(TestGrabCut.img,1),size(TestGrabCut.img,2),'uint8');
-                cv.grabCut(TestGrabCut.img,mask,'foo');
+                cv.grabCut(img, mask, 'foo');
                 throw('UnitTest:Fail');
             catch e
                 assert(strcmp(e.identifier,'mexopencv:error'));
             end
         end
 
-        function test_error_3
-            % ERROR TEST 3
+        function test_error_unrecognized_option
+            img = imread(TestGrabCut.im);
+            mask = zeros(size(img,1),size(img,2),'uint8');
             try
-                mask = zeros(size(TestGrabCut.img,1),size(TestGrabCut.img,2),'uint8');
-                cv.grabCut(TestGrabCut.img,mask,'foo','bar');
+                cv.grabCut(img, mask, 'foo','bar');
                 throw('UnitTest:Fail');
             catch e
                 assert(strcmp(e.identifier,'mexopencv:error'));
             end
         end
 
-        function test_error_4
-            % ERROR TEST 4
+        function test_error_invalid_option_value_1
+            img = imread(TestGrabCut.im);
+            mask = zeros(size(img,1),size(img,2),'uint8');
             try
-                mask = zeros(size(TestGrabCut.img,1),size(TestGrabCut.img,2),'uint8');
-                cv.grabCut(TestGrabCut.img,mask,'Init','foo');
+                cv.grabCut(img, mask, 'Mode','foo');
                 throw('UnitTest:Fail');
             catch e
                 assert(strcmp(e.identifier,'mexopencv:error'));
             end
         end
 
-        function test_error_5
-            % ERROR TEST 5
+        function test_error_invalid_option_value_2
+            img = imread(TestGrabCut.im);
+            mask = zeros(size(img,1),size(img,2),'uint8');
             try
-                mask = zeros(size(TestGrabCut.img,1),size(TestGrabCut.img,2),'uint8');
-                cv.grabCut(TestGrabCut.img,mask,'MaxIter','foo');
+                cv.grabCut(img, mask, 'IterCount','foo');
                 throw('UnitTest:Fail');
             catch e
                 assert(strcmp(e.identifier,'mexopencv:error'));
             end
         end
-        
-        % add more failure cases
     end
+
 end

@@ -1,6 +1,7 @@
 /**
  * @file rectangle.cpp
- * @brief mex interface for rectangle
+ * @brief mex interface for cv::rectangle
+ * @ingroup imgproc
  * @author Kota Yamaguchi
  * @date 2012
  */
@@ -15,46 +16,65 @@ using namespace cv;
  * @param nrhs number of right-hand-side arguments
  * @param prhs pointers to mxArrays in the right-hand-side
  */
-void mexFunction( int nlhs, mxArray *plhs[],
-                  int nrhs, const mxArray *prhs[] )
+void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
 {
     // Check the number of arguments
-    if (nrhs<2 || nlhs>1)
-        mexErrMsgIdAndTxt("mexopencv:error","Wrong number of arguments");
+    nargchk(nrhs>=2 && nlhs<=1);
 
     // Argument vector
-    vector<MxArray> rhs(prhs,prhs+nrhs);
-    bool _arg_format = (nrhs%2)==0;
-    
+    vector<MxArray> rhs(prhs, prhs+nrhs);
+
+    // cv::rectangle has two overloaded variants
+    bool rect_variant = (rhs[1].isCell() || (rhs[1].numel() % 4)==0);
+    nargchk(rect_variant ? ((nrhs%2)==0) : (nrhs>=3 && (nrhs%2)==1));
+
     // Option processing
-    Mat img = rhs[0].toMat();
     Scalar color;
-    int thickness=1;
-    int lineType=8;
-    int shift=0;
-    for (int i=(_arg_format)?2:3; i<nrhs; i+=2) {
-        string key = rhs[i].toString();
-        if (key=="Color")
-            color = rhs[i+1].toScalar();
-        else if (key=="Thickness")
-            thickness = rhs[i+1].toInt();
-        else if (key=="LineType")
+    vector<Vec4d> colors;
+    int thickness = 1;
+    int lineType = cv::LINE_8;
+    int shift = 0;
+    for (int i=(rect_variant ? 2 : 3); i<nrhs; i+=2) {
+        string key(rhs[i].toString());
+        if (key == "Color")
+            color = (rhs[i+1].isChar()) ?
+                ColorType[rhs[i+1].toString()] : rhs[i+1].toScalar();
+        else if (key == "Colors")
+            colors = MxArrayToVectorVec<double,4>(rhs[i+1]);
+        else if (key == "Thickness")
+            thickness = (rhs[i+1].isChar()) ?
+                ThicknessType[rhs[i+1].toString()] : rhs[i+1].toInt();
+        else if (key == "LineType")
             lineType = (rhs[i+1].isChar()) ?
                 LineType[rhs[i+1].toString()] : rhs[i+1].toInt();
-        else if (key=="Shift")
+        else if (key == "Shift")
             shift = rhs[i+1].toInt();
         else
-            mexErrMsgIdAndTxt("mexopencv:error","Unrecognized option");
+            mexErrMsgIdAndTxt("mexopencv:error",
+                "Unrecognized option %s", key.c_str());
     }
-    
-    // Execute function
-    if (!_arg_format) {
-        Point pt1(rhs[1].toPoint()), pt2(rhs[2].toPoint());
+
+    // Process
+    Mat img(rhs[0].toMat());
+    if (!rect_variant) {
+        Point pt1(rhs[1].toPoint()),
+              pt2(rhs[2].toPoint());
         rectangle(img, pt1, pt2, color, thickness, lineType, shift);
     }
     else {
-        Rect r(rhs[1].toRect());
-        rectangle(img, r, color, thickness, lineType, shift);
+        if (rhs[1].isNumeric() && rhs[1].numel() == 4) {
+            Rect r(rhs[1].toRect());
+            rectangle(img, r, color, thickness, lineType, shift);
+        }
+        else {
+            vector<Rect> r(rhs[1].toVector<Rect>());
+            if (!colors.empty() && colors.size() != r.size())
+                mexErrMsgIdAndTxt("mexopencv:error", "Length mismatch");
+            for (size_t i = 0; i < r.size(); ++i)
+                rectangle(img, r[i],
+                    (colors.empty() ? color : Scalar(colors[i])),
+                    thickness, lineType, shift);
+        }
     }
     plhs[0] = MxArray(img);
 }

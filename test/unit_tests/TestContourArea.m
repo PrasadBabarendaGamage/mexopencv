@@ -1,15 +1,22 @@
 classdef TestContourArea
     %TestContourArea
-    properties (Constant)
-        curve = {[0,0],[1,0],[2,2],[3,3],[3,4]};
-    end
-    
+
     methods (Static)
         function test_1
-            a = cv.contourArea(TestContourArea.curve);
+            curve = {[0 0], [1 0], [2 2], [3 3], [3 4]};
+            a = cv.contourArea(curve);
+            validateattributes(a, {'double'}, {'scalar'}, ...
+                'cv.contourArea', 'a');
         end
-        
-        function test_error_1
+
+        function test_2
+            curve = [0 0; 1 0; 2 2; 3 3; 3 4];
+            a = cv.contourArea(curve, 'Oriented',false);
+            validateattributes(a, {'double'}, {'scalar'}, ...
+                'cv.contourArea', 'a');
+        end
+
+        function test_error_argnum
             try
                 cv.contourArea();
                 throw('UnitTest:Fail');
@@ -18,6 +25,5 @@ classdef TestContourArea
             end
         end
     end
-    
-end
 
+end

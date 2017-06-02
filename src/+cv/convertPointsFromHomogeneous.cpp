@@ -1,6 +1,7 @@
 /**
  * @file convertPointsFromHomogeneous.cpp
- * @brief mex interface for convertPointsFromHomogeneous
+ * @brief mex interface for cv::convertPointsFromHomogeneous
+ * @ingroup calib3d
  * @author Kota Yamaguchi
  * @date 2011
  */
@@ -15,47 +16,45 @@ using namespace cv;
  * @param nrhs number of right-hand-side arguments
  * @param prhs pointers to mxArrays in the right-hand-side
  */
-void mexFunction( int nlhs, mxArray *plhs[],
-                  int nrhs, const mxArray *prhs[] )
+void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
 {
     // Check the number of arguments
-    if (nrhs!=1 || nlhs>1)
-        mexErrMsgIdAndTxt("mexopencv:error","Wrong number of arguments");
-    
+    nargchk(nrhs==1 && nlhs<=1);
+
     // Argument vector
-    vector<MxArray> rhs(prhs,prhs+nrhs);
-    
+    vector<MxArray> rhs(prhs, prhs+nrhs);
+
     // Process
     if (rhs[0].isNumeric()) {
-        Mat src(rhs[0].toMat(CV_32F)), dst;
+        // input is Nx3/Nx1x3/1xNx3 or Nx4/Nx1x4/1xNx4 matrix
+        Mat src(rhs[0].toMat(rhs[0].isSingle() ? CV_32F : CV_64F)), dst;
+        bool cn1 = (src.channels() == 1);
         convertPointsFromHomogeneous(src, dst);
+        if (cn1) dst = dst.reshape(1,0);// N-by-(2/3) numeric matrix
         plhs[0] = MxArray(dst);
     }
-    else if (rhs[0].isCell()) {
-        vector<MxArray> _src(rhs[0].toVector<MxArray>());
-        if (_src.empty())
-            mexErrMsgIdAndTxt("mexopencv:error","Invalid input");
-        int n = _src[0].numel();
-        if (n==3) {
-            vector<Point3f> src(rhs[0].toVector<Point3f>());
-            vector<Point2f> dst;
+    else if (rhs[0].isCell() && !rhs[0].isEmpty()) {
+        mwSize dims = rhs[0].at<MxArray>(0).numel();
+        if (dims == 3) {
+            // input is cell array {[x,y,z], [x,y,z], ..}
+            vector<Point3d> src(rhs[0].toVector<Point3d>());
+            vector<Point2d> dst;
             convertPointsFromHomogeneous(src, dst);
-            plhs[0] = MxArray(dst);
+            plhs[0] = MxArray(dst);  // 1xN cell-array {[x,y], ...}
+            //plhs[0] = MxArray(Mat(dst,false).reshape(1,0));  // N-by-2 numeric matrix
         }
-        else if (n==4) {
-            vector<Vec4f> src;
-            src.reserve(_src.size());
-            for (vector<MxArray>::iterator it=_src.begin(); it<_src.end(); ++it)
-                src.push_back(Vec4f((*it).at<float>(0),(*it).at<float>(1),
-                                (*it).at<float>(2),(*it).at<float>(3)));
-            vector<Point3f> dst;
+        else if (dims == 4) {
+            // input is cell array {[x,y,z,w], [x,y,z,w], ..}
+            //vector<Vec4d> src(rhs[0].toVector<Vec4d>());
+            vector<Vec4d> src(MxArrayToVectorVec<double,4>(rhs[0]));
+            vector<Point3d> dst;
             convertPointsFromHomogeneous(src, dst);
-            plhs[0] = MxArray(dst);
+            plhs[0] = MxArray(dst);  // 1xN cell-array {[x,y,z], ...}
+            //plhs[0] = MxArray(Mat(dst,false).reshape(1,0));  // N-by-3 numeric matrix
         }
         else
-            mexErrMsgIdAndTxt("mexopencv:error","Invalid input");
+            mexErrMsgIdAndTxt("mexopencv:error", "Invalid points argument");
     }
     else
-        mexErrMsgIdAndTxt("mexopencv:error","Invalid input");
-    
+        mexErrMsgIdAndTxt("mexopencv:error", "Invalid points argument");
 }

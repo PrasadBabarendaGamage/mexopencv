@@ -1,11 +1,50 @@
+# temp files
 *~
 .DS_Store
-*.o
-*.mex*
 *.autosave
 *.asv
 *.bak
+octave-workspace
 
-# MS Visual Studio
+# compiled outputs and binaries
+*.mex*
+*.a
+*.o
+*.lib
 *.obj
 *.pdb
+*.idb
+*.ilk
+*.exp
+*.dll
+*.so
+*.dylib
+*.exe
+
+# generated docs
+/doc/html/
+/doc/latex/
+/doc/matlab/
+
+# published samples
+/samples/html/
+/opencv_contrib/samples/html/
+
+# downloaded files for samples and tests
+/test/768x576.avi
+/test/car.avi
+/test/haarcascade_frontalface_default.xml
+/test/lbpcascade_frontalface.xml
+/test/haarcascade_frontalface_alt.xml
+/test/haarcascade_eye_tree_eyeglasses.xml
+/test/haarcascade_smile.xml
+/test/inriaperson.xml
+/test/model.yml.gz
+/test/ObjectnessTrainedModel/
+/test/att_faces.zip
+/test/att_faces/
+/test/mnist/
+/test/dnn/
+/test/cloning/
+/test/data01.xml
+/test/RubberWhale.flo

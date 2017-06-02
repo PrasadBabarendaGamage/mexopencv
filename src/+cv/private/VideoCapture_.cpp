@@ -1,6 +1,7 @@
 /**
  * @file VideoCapture_.cpp
- * @brief mex interface for VideoCapture_
+ * @brief mex interface for cv::VideoCapture
+ * @ingroup videoio
  * @author Kota Yamaguchi
  * @date 2012
  */
@@ -8,36 +9,88 @@
 using namespace std;
 using namespace cv;
 
+namespace {
 // Persistent objects
-
 /// Last object id to allocate
 int last_id = 0;
 /// Object container
-map<int,VideoCapture> obj_;
+map<int,Ptr<VideoCapture> > obj_;
 
-/** Capture Property map for option processing
- */
-const ConstMap<std::string,int> CapProp = ConstMap<std::string,int>
-    ("PosMsec",CV_CAP_PROP_POS_MSEC)  // Current position of the video file in milliseconds or video capture timestamp.
-    ("PosFrames",CV_CAP_PROP_POS_FRAMES)  // 0-based index of the frame to be decoded/captured next.
-    ("AVIRatio",CV_CAP_PROP_POS_AVI_RATIO)  // Relative position of the video file: 0 - start of the film, 1 - end of the film.
-    ("FrameWidth",CV_CAP_PROP_FRAME_WIDTH)  // Width of the frames in the video stream.
-    ("FrameHeight",CV_CAP_PROP_FRAME_HEIGHT)  // Height of the frames in the video stream.
-    ("FPS",CV_CAP_PROP_FPS)  // Frame rate.
-    ("FourCC",CV_CAP_PROP_FOURCC)  // 4-character code of codec.
-    ("FrameCount",CV_CAP_PROP_FRAME_COUNT)  // Number of frames in the video file.
-    ("Format",CV_CAP_PROP_FORMAT)  // Format of the Mat objects returned by retrieve() .
-    ("Mode",CV_CAP_PROP_MODE)  // Backend-specific value indicating the current capture mode.
-    ("Brightness",CV_CAP_PROP_BRIGHTNESS)  // Brightness of the image (only for cameras).
-    ("Contrast",CV_CAP_PROP_CONTRAST)  // Contrast of the image (only for cameras).
-    ("Saturation",CV_CAP_PROP_SATURATION)  // Saturation of the image (only for cameras).
-    ("Hue",CV_CAP_PROP_HUE)  // Hue of the image (only for cameras).
-    ("Gain",CV_CAP_PROP_GAIN)  // Gain of the image (only for cameras).
-    ("Exposure",CV_CAP_PROP_EXPOSURE)  // Exposure (only for cameras).
-    ("ConvertRGB",CV_CAP_PROP_CONVERT_RGB)  // Boolean flags indicating whether images should be converted to RGB.
-    //("WhiteBalance",CV_CAP_PROP_WHITE_BALANCE)  // Currently not supported
-    ("Rectification",CV_CAP_PROP_RECTIFICATION)  // Rectification flag for stereo cameras (note: only supported by DC1394 v 2.x backend currently)
-;
+/// Capture Property map for option processing
+const ConstMap<string,int> CapProp = ConstMap<string,int>
+    ("PosMsec",       cv::CAP_PROP_POS_MSEC)
+    ("PosFrames",     cv::CAP_PROP_POS_FRAMES)
+    ("PosAviRatio",   cv::CAP_PROP_POS_AVI_RATIO)
+    ("FrameWidth",    cv::CAP_PROP_FRAME_WIDTH)
+    ("FrameHeight",   cv::CAP_PROP_FRAME_HEIGHT)
+    ("FPS",           cv::CAP_PROP_FPS)
+    ("FourCC",        cv::CAP_PROP_FOURCC)
+    ("FrameCount",    cv::CAP_PROP_FRAME_COUNT)
+    ("Format",        cv::CAP_PROP_FORMAT)
+    ("Mode",          cv::CAP_PROP_MODE)
+    ("Brightness",    cv::CAP_PROP_BRIGHTNESS)
+    ("Contrast",      cv::CAP_PROP_CONTRAST)
+    ("Saturation",    cv::CAP_PROP_SATURATION)
+    ("Hue",           cv::CAP_PROP_HUE)
+    ("Gain",          cv::CAP_PROP_GAIN)
+    ("Exposure",      cv::CAP_PROP_EXPOSURE)
+    ("ConvertRGB",    cv::CAP_PROP_CONVERT_RGB)
+    //("WhiteBalanceBlue",  cv::CAP_PROP_WHITE_BALANCE_BLUE_U)
+    ("Rectification", cv::CAP_PROP_RECTIFICATION)
+    //TODO: other undocumented properties
+    ("Monochrome",    cv::CAP_PROP_MONOCHROME)
+    ("Sharpness",     cv::CAP_PROP_SHARPNESS)
+    ("AutoExposure",  cv::CAP_PROP_AUTO_EXPOSURE)
+    ("Gamma",         cv::CAP_PROP_GAMMA)
+    ("Temperature",   cv::CAP_PROP_TEMPERATURE)
+    ("Trigger",       cv::CAP_PROP_TRIGGER)
+    ("TriggerDelay",  cv::CAP_PROP_TRIGGER_DELAY)
+    //("WhiteBalanceRed",  cv::CAP_PROP_WHITE_BALANCE_RED_V)
+    ("Zoom",          cv::CAP_PROP_ZOOM)
+    ("Focus",         cv::CAP_PROP_FOCUS)
+    ("GUID",          cv::CAP_PROP_GUID)
+    ("ISOSpeed",      cv::CAP_PROP_ISO_SPEED)
+    ("Backlight",     cv::CAP_PROP_BACKLIGHT)
+    ("Pan",           cv::CAP_PROP_PAN)
+    ("Tilt",          cv::CAP_PROP_TILT)
+    ("Roll",          cv::CAP_PROP_ROLL)
+    ("Iris",          cv::CAP_PROP_IRIS)
+    ("Settings",      cv::CAP_PROP_SETTINGS)
+    ("Buffersize",    cv::CAP_PROP_BUFFERSIZE)
+    ("Autofocus",     cv::CAP_PROP_AUTOFOCUS);
+
+/// Camera API map for option processing
+const ConstMap<string,int> CameraApiMap = ConstMap<string,int>
+    ("Any",             cv::CAP_ANY)
+    ("VfW",             cv::CAP_VFW)
+    ("V4L",             cv::CAP_V4L)
+    ("V4L2",            cv::CAP_V4L2)
+    ("FireWire",        cv::CAP_FIREWIRE)
+    ("FireWare",        cv::CAP_FIREWARE)
+    ("IEEE1394",        cv::CAP_IEEE1394)
+    ("DC1394",          cv::CAP_DC1394)
+    ("CMU1394",         cv::CAP_CMU1394)
+    ("QuickTime",       cv::CAP_QT)
+    ("Unicap",          cv::CAP_UNICAP)
+    ("DirectShow",      cv::CAP_DSHOW)
+    ("PvAPI",           cv::CAP_PVAPI)
+    ("OpenNI",          cv::CAP_OPENNI)
+    ("OpenNIAsus",      cv::CAP_OPENNI_ASUS)
+    ("Android",         cv::CAP_ANDROID)
+    ("XIMEA",           cv::CAP_XIAPI)
+    ("AVFoundation",    cv::CAP_AVFOUNDATION)
+    ("Giganetix",       cv::CAP_GIGANETIX)
+    ("MediaFoundation", cv::CAP_MSMF)
+    ("WinRT",           cv::CAP_WINRT)
+    ("IntelPerC",       cv::CAP_INTELPERC)
+    ("OpenNI2",         cv::CAP_OPENNI2)
+    ("OpenNI2Asus",     cv::CAP_OPENNI2_ASUS)
+    ("gPhoto2",         cv::CAP_GPHOTO2)
+    ("GStreamer",       cv::CAP_GSTREAMER)
+    ("FFMPEG",          cv::CAP_FFMPEG)
+    ("Images",          cv::CAP_IMAGES)
+    ("Aravis",          cv::CAP_ARAVIS);
+}
 
 /**
  * Main entry called from Matlab
@@ -46,93 +99,120 @@ const ConstMap<std::string,int> CapProp = ConstMap<std::string,int>
  * @param nrhs number of right-hand-side arguments
  * @param prhs pointers to mxArrays in the right-hand-side
  */
-void mexFunction( int nlhs, mxArray *plhs[],
-                  int nrhs, const mxArray *prhs[] )
+void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
 {
-    if (nrhs<1 || nlhs>1)
-        mexErrMsgIdAndTxt("mexopencv:error","Wrong number of arguments");
-    
-    // Determine argument format between constructor or (id,method,...)
-    vector<MxArray> rhs(prhs,prhs+nrhs);
-    int id = 0;
-    string method;
-    if (nrhs==1) {
-        // Constructor is called. Create a new object from argument
-        obj_[++last_id] = (rhs[0].isChar()) ? 
-            VideoCapture(rhs[0].toString()) : VideoCapture(rhs[0].toInt());
+    // Check the number of arguments
+    nargchk(nrhs>=2 && nlhs<=1);
+
+    // Argument vector
+    vector<MxArray> rhs(prhs, prhs+nrhs);
+    int id = rhs[0].toInt();
+    string method(rhs[1].toString());
+
+    // Constructor is called. Create a new object from arguments
+    if (method == "new") {
+        nargchk(nrhs==2 && nlhs<=1);
+        obj_[++last_id] = makePtr<VideoCapture>();
         plhs[0] = MxArray(last_id);
+        mexLock();
         return;
     }
-    else if (rhs[0].isNumeric() && rhs[0].numel()==1 && nrhs>1) {
-        id = rhs[0].toInt();
-        method = rhs[1].toString();
-    }
-    else
-        mexErrMsgIdAndTxt("mexopencv:error","Invalid arguments");
-    
+
     // Big operation switch
-    VideoCapture& obj = obj_[id];
+    Ptr<VideoCapture> obj = obj_[id];
+    if (obj.empty())
+        mexErrMsgIdAndTxt("mexopencv:error", "Object not found id=%d", id);
     if (method == "delete") {
-        if (nrhs!=2 || nlhs!=0)
-            mexErrMsgIdAndTxt("mexopencv:error","Output not assigned");
+        nargchk(nrhs==2 && nlhs==0);
         obj_.erase(id);
+        mexUnlock();
     }
     else if (method == "open") {
-        if (nrhs!=3)
-            mexErrMsgIdAndTxt("mexopencv:error","Wrong number of arguments");
+        nargchk(nrhs>=3 && (nrhs%2)==1 && nlhs<=1);
+        int pref = cv::CAP_ANY;
+        for (int i=3; i<nrhs; i+=2) {
+            string key(rhs[i].toString());
+            if (key == "API")
+                pref = CameraApiMap[rhs[i+1].toString()];
+            else
+                mexErrMsgIdAndTxt("mexopencv:error",
+                    "Unrecognized option %s", key.c_str());
+        }
+        // index should be within 0-99, and pref is multiples of 100
         bool b = (rhs[2].isChar()) ?
-            obj.open(rhs[2].toString()) : obj.open(rhs[2].toInt());
+            obj->open(rhs[2].toString(), pref) :
+            obj->open(rhs[2].toInt() + pref);
         plhs[0] = MxArray(b);
     }
     else if (method == "isOpened") {
-        if (nrhs!=2)
-            mexErrMsgIdAndTxt("mexopencv:error","Wrong number of arguments");
-        plhs[0] = MxArray(obj.isOpened());
+        nargchk(nrhs==2 && nlhs<=1);
+        bool b = obj->isOpened();
+        plhs[0] = MxArray(b);
     }
     else if (method == "release") {
-        if (nrhs!=2 || nlhs!=0)
-            mexErrMsgIdAndTxt("mexopencv:error","Output not assigned");
-        obj.release();
+        nargchk(nrhs==2 && nlhs==0);
+        obj->release();
     }
     else if (method == "grab") {
-        if (nrhs!=2)
-            mexErrMsgIdAndTxt("mexopencv:error","Wrong number of arguments");
-        plhs[0] = MxArray(obj.grab());
+        nargchk(nrhs==2 && nlhs<=1);
+        bool b = obj->grab();
+        plhs[0] = MxArray(b);
     }
     else if (method == "retrieve") {
-        if (nrhs!=2)
-            mexErrMsgIdAndTxt("mexopencv:error","Wrong number of arguments");
-        Mat frame;
-        if (obj.retrieve(frame)) {
-            if (frame.type()==CV_8UC3)
-                cvtColor(frame,frame,CV_BGR2RGB);
-            plhs[0] = MxArray(frame);
+        nargchk(nrhs>=2 && (nrhs%2)==0 && nlhs<=1);
+        int idx = 0;
+        bool flip = true;
+        for (int i=2; i<nrhs; i+=2) {
+            string key(rhs[i].toString());
+            if (key == "FlipChannels")
+                flip = rhs[i+1].toBool();
+            else if (key == "StreamIdx")
+                idx = rhs[i+1].toInt();
+            else
+                mexErrMsgIdAndTxt("mexopencv:error",
+                    "Unrecognized option %s", key.c_str());
         }
-        else
-            plhs[0] = MxArray(mxCreateNumericMatrix(0,0,mxUINT8_CLASS,mxREAL));
+        Mat image;
+        bool b = obj->retrieve(image, idx);
+        if (b && flip && image.channels()==3)
+            cvtColor(image, image, cv::COLOR_BGR2RGB);
+        plhs[0] = MxArray(b ? image : Mat());
     }
     else if (method == "read") {
-        if (nrhs!=2)
-            mexErrMsgIdAndTxt("mexopencv:error","Wrong number of arguments");
-        Mat frame;
-        if (obj.read(frame)) {
-            if (frame.type()==CV_8UC3)
-                cvtColor(frame,frame,CV_BGR2RGB);
-            plhs[0] = MxArray(frame);
+        nargchk(nrhs>=2 && (nrhs%2)==0 && nlhs<=1);
+        bool flip = true;
+        for (int i=2; i<nrhs; i+=2) {
+            string key(rhs[i].toString());
+            if (key == "FlipChannels")
+                flip = rhs[i+1].toBool();
+            else
+                mexErrMsgIdAndTxt("mexopencv:error",
+                    "Unrecognized option %s", key.c_str());
         }
-        else
-            plhs[0] = MxArray(mxCreateNumericMatrix(0,0,mxUINT8_CLASS,mxREAL));
+        Mat image;
+        bool b = obj->read(image);
+        if (b && flip && image.channels()==3)
+            cvtColor(image, image, cv::COLOR_BGR2RGB);
+        plhs[0] = MxArray(b ? image : Mat());
     }
     else if (method == "get") {
-        if (nrhs!=3)
-            mexErrMsgIdAndTxt("mexopencv:error","Wrong number of arguments");
-        plhs[0] = MxArray(obj.get(CapProp[rhs[2].toString()]));
+        nargchk(nrhs==3 && nlhs<=1);
+        int propId = (rhs[2].isChar()) ?
+            CapProp[rhs[2].toString()] : rhs[2].toInt();
+        double value = obj->get(propId);
+        plhs[0] = MxArray(value);
     }
     else if (method == "set") {
-        if (nrhs!=4)
-            mexErrMsgIdAndTxt("mexopencv:error","Wrong number of arguments");
-        plhs[0] = MxArray(obj.set(CapProp[rhs[2].toString()],rhs[3].toDouble()));
+        nargchk(nrhs==4 && nlhs==0);
+        int propId = (rhs[2].isChar()) ?
+            CapProp[rhs[2].toString()] : rhs[2].toInt();
+        double value = rhs[3].toDouble();
+        bool success = obj->set(propId, value);
+        if (!success)
+            mexWarnMsgIdAndTxt("mexopencv:error",
+                "Error setting property %d", propId);
     }
     else
-        mexErrMsgIdAndTxt("mexopencv:error","Unrecognized operation");
+        mexErrMsgIdAndTxt("mexopencv:error",
+            "Unrecognized operation %s", method.c_str());
 }

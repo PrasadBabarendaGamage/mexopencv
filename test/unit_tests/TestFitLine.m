@@ -1,15 +1,30 @@
 classdef TestFitLine
     %TestFitLine
-    properties (Constant)
-        points = mat2cell([1:50;ones(1,50)]'+10*randn(50,2),ones(50,1),2)';
-    end
-    
+
     methods (Static)
         function test_1
-            rct = cv.fitLine(TestFitLine.points);
+            % noisy 2D line
+            x = linspace(0, 10, 50);
+            y = -6*x+5;
+            points = bsxfun(@plus, [x(:) y(:)], randn(50,2));
+            lin = cv.fitLine(points);
+            validateattributes(lin, {'numeric'}, {'vector', 'real', 'numel',4});
         end
-        
-        function test_error_1
+
+        function test_2
+            % we use MVNRND from Statistics Toolbox
+            if ~mexopencv.require('stats')
+                disp('SKIP');
+                return;
+            end
+
+            % random 3D points with a strong correlation
+            points = mvnrnd([0 0 0], [7 5 5; 5 7 5; 5 5 7], 100);
+            lin = cv.fitLine(points);
+            validateattributes(lin, {'numeric'}, {'vector', 'real', 'numel',6});
+        end
+
+        function test_error_argnum
             try
                 cv.fitLine();
                 throw('UnitTest:Fail');
@@ -18,6 +33,5 @@ classdef TestFitLine
             end
         end
     end
-    
-end
 
+end

@@ -1,6 +1,7 @@
 /**
  * @file goodFeaturesToTrack.cpp
- * @brief mex interface for goodFeaturesToTrack
+ * @brief mex interface for cv::goodFeaturesToTrack
+ * @ingroup imgproc
  * @author Kota Yamaguchi
  * @date 2011
  */
@@ -15,44 +16,45 @@ using namespace cv;
  * @param nrhs number of right-hand-side arguments
  * @param prhs pointers to mxArrays in the right-hand-side
  */
-void mexFunction( int nlhs, mxArray *plhs[],
-                  int nrhs, const mxArray *prhs[] )
+void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
 {
     // Check the number of arguments
-    if (nrhs<1 || ((nrhs%2)!=1) || nlhs>1)
-        mexErrMsgIdAndTxt("mexopencv:error","Wrong number of arguments");
-    
+    nargchk(nrhs>=1 && (nrhs%2)==1 && nlhs<=1);
+
     // Argument vector
-    vector<MxArray> rhs(prhs,prhs+nrhs);
-    int maxCorners=1000;
-    double qualityLevel=0.01;
-    double minDistance=2.0;
+    vector<MxArray> rhs(prhs, prhs+nrhs);
+
+    // Option processing
+    int maxCorners = 1000;
+    double qualityLevel = 0.01;
+    double minDistance = 2.0;
     Mat mask;
-    int blockSize=3;
-    bool useHarrisDetector=false;
-    double k=0.04;
+    int blockSize = 3;
+    bool useHarrisDetector = false;
+    double k = 0.04;
     for (int i=1; i<nrhs; i+=2) {
-        string key = rhs[i].toString();
-        if (key=="MaxCorners")
+        string key(rhs[i].toString());
+        if (key == "MaxCorners")
             maxCorners = rhs[i+1].toInt();
-        else if (key=="QualityLevel")
+        else if (key == "QualityLevel")
             qualityLevel = rhs[i+1].toDouble();
-        else if (key=="MinDistance")
+        else if (key == "MinDistance")
             minDistance = rhs[i+1].toDouble();
-        else if (key=="Mask")
+        else if (key == "Mask")
             mask = rhs[i+1].toMat(CV_8U);
-        else if (key=="BlockSize")
+        else if (key == "BlockSize")
             blockSize = rhs[i+1].toInt();
-        else if (key=="UseHarrisDetector")
+        else if (key == "UseHarrisDetector")
             useHarrisDetector = rhs[i+1].toBool();
-        else if (key=="K")
-            k = rhs[i+1].toInt();
+        else if (key == "K")
+            k = rhs[i+1].toDouble();
         else
-            mexErrMsgIdAndTxt("mexopencv:error","Unrecognized option");
+            mexErrMsgIdAndTxt("mexopencv:error",
+                "Unrecognized option %s", key.c_str());
     }
-    
+
     // Process
-    Mat image = (rhs[0].isUint8()) ? rhs[0].toMat(CV_8U) : rhs[0].toMat(CV_32F);
+    Mat image(rhs[0].toMat(rhs[0].isUint8() ? CV_8U : CV_32F));
     vector<Point2f> corners;
     goodFeaturesToTrack(image, corners, maxCorners, qualityLevel, minDistance,
         mask, blockSize, useHarrisDetector, k);

@@ -1,15 +1,26 @@
 classdef TestCornerMinEigenVal
     %TestCornerMinEigenVal
+
     properties (Constant)
-        img = rgb2gray(imread(fullfile(mexopencv.root(),'test','img001.jpg')));
+        im = fullfile(mexopencv.root(),'test','img001.jpg');
     end
-    
+
     methods (Static)
         function test_1
-            result = cv.cornerMinEigenVal(TestCornerMinEigenVal.img);
+            img = cv.imread(TestCornerMinEigenVal.im, ...
+                'Grayscale',true, 'ReduceScale',2);
+            result = cv.cornerMinEigenVal(img);
+            validateattributes(result, {'single'}, {'size',size(img)});
         end
-        
-        function test_error_1
+
+        function test_2
+            img = cv.imread(TestCornerMinEigenVal.im, ...
+                'Grayscale',true, 'ReduceScale',2);
+            result = cv.cornerMinEigenVal(single(img)/255);
+            validateattributes(result, {'single'}, {'size',size(img)});
+        end
+
+        function test_error_argnum
             try
                 cv.cornerMinEigenVal();
                 throw('UnitTest:Fail');
@@ -18,6 +29,5 @@ classdef TestCornerMinEigenVal
             end
         end
     end
-    
-end
 
+end

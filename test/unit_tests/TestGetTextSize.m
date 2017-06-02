@@ -1,14 +1,21 @@
 classdef TestGetTextSize
     %TestGetTextSize
-    properties (Constant)
-    end
-    
+
     methods (Static)
-        function test_1
-            a = cv.getTextSize('foo');
+        function test_simple
+            sz = cv.getTextSize('foo');
+            validateattributes(sz, {'numeric'}, {'vector', 'numel',2});
         end
-        
-        function test_error_1
+
+        function test_options
+            [sz,b] = cv.getTextSize('hello world', ...
+                'FontFace','HersheyComplex', 'FontStyle','Italic', ...
+                'FontScale',1.1, 'Thickness',2);
+            validateattributes(sz, {'numeric'}, {'vector', 'numel',2});
+            validateattributes(b, {'numeric'}, {'scalar'});
+        end
+
+        function test_error_argnum
             try
                 cv.getTextSize();
                 throw('UnitTest:Fail');
@@ -17,6 +24,5 @@ classdef TestGetTextSize
             end
         end
     end
-    
-end
 
+end

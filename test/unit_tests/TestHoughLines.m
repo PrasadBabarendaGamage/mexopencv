@@ -1,15 +1,24 @@
 classdef TestHoughLines
     %TestHoughLines
-    properties (Constant)
-        img = rgb2gray(imread(fullfile(mexopencv.root(),'test','img001.jpg')));
-    end
-    
+
     methods (Static)
         function test_1
-            result = cv.HoughLines(TestHoughLines.img);
+            img = cv.imread(fullfile(mexopencv.root(),'test','left12.jpg'), ...
+                'Grayscale',true, 'ReduceScale',2);
+            lines = cv.HoughLines(img);
+            validateattributes(lines, {'cell'}, {'vector'});
+            cellfun(@(v) validateattributes(v, {'numeric'}, ...
+                {'vector', 'numel',2, 'real'}), lines);
         end
-        
-        function test_error_1
+
+        function test_2
+            img = imread(fullfile(mexopencv.root(),'test','left12.jpg'));
+            lines = cv.HoughLines(img, ...
+                'Rho',1, 'Theta',pi/180, 'Threshold',80, ...
+                'SRN',0, 'STN',0, 'MinTheta',0, 'MaxTheta',0);
+        end
+
+        function test_error_argnum
             try
                 cv.HoughLines();
                 throw('UnitTest:Fail');
@@ -18,6 +27,5 @@ classdef TestHoughLines
             end
         end
     end
-    
-end
 
+end

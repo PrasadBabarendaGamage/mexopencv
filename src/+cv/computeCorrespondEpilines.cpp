@@ -1,6 +1,7 @@
 /**
  * @file computeCorrespondEpilines.cpp
- * @brief mex interface for computeCorrespondEpilines
+ * @brief mex interface for cv::computeCorrespondEpilines
+ * @ingroup calib3d
  * @author Kota Yamaguchi
  * @date 2011
  */
@@ -15,45 +16,43 @@ using namespace cv;
  * @param nrhs number of right-hand-side arguments
  * @param prhs pointers to mxArrays in the right-hand-side
  */
-void mexFunction( int nlhs, mxArray *plhs[],
-                  int nrhs, const mxArray *prhs[] )
+void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
 {
     // Check the number of arguments
-    if (nrhs<2 || (nrhs%2)!=0 || nlhs>1)
-        mexErrMsgIdAndTxt("mexopencv:error","Wrong number of arguments");
-    
+    nargchk(nrhs>=2 && (nrhs%2)==0 && nlhs<=1);
+
     // Argument vector
-    vector<MxArray> rhs(prhs,prhs+nrhs);
-    
-    Mat F(rhs[1].toMat(CV_32F));
+    vector<MxArray> rhs(prhs, prhs+nrhs);
+
+    // Option processing
     int whichImage = 1;
     for (int i=2; i<nrhs; i+=2) {
-        string key = rhs[i].toString();
-        if (key=="WhichImage") {
+        string key(rhs[i].toString());
+        if (key == "WhichImage")
             whichImage = rhs[i+1].toInt();
-            if (whichImage!=1&&whichImage!=2)
-                mexErrMsgIdAndTxt("mexopencv:error","Invalid WhichImage");
-        }
         else
-            mexErrMsgIdAndTxt("mexopencv:error","Unrecognized option");
+            mexErrMsgIdAndTxt("mexopencv:error",
+                "Unrecognized option %s", key.c_str());
     }
-    
+    if (whichImage!=1 && whichImage!=2)
+        mexErrMsgIdAndTxt("mexopencv:error", "Invalid WhichImage value");
+
     // Process
-    vector<Vec3f> lines;
+    Mat F(rhs[1].toMat(CV_64F));
     if (rhs[0].isNumeric()) {
-        Mat points(rhs[0].toMat(CV_32F));
+        Mat points(rhs[0].toMat(rhs[0].isSingle() ? CV_32F : CV_64F)), lines;
+        bool cn1 = (points.channels() == 1 && (points.cols == 2 || points.cols == 3));
+        if (cn1) points = points.reshape(points.cols, 0);  // Nxd => Nx1xd
         computeCorrespondEpilines(points, whichImage, F, lines);
+        if (cn1) lines = lines.reshape(1,0);  // Nx1x3 => Nx3
+        plhs[0] = MxArray(lines);
     }
     else if (rhs[0].isCell()) {
-        vector<Point2f> points(rhs[0].toVector<Point2f>());
+        vector<Point2d> points(rhs[0].toVector<Point2d>());
+        vector<Point3d> lines;
         computeCorrespondEpilines(points, whichImage, F, lines);
+        plhs[0] = MxArray(lines);  // {[a,b,c], ...}
     }
     else
-        mexErrMsgIdAndTxt("mexopencv:error","Invalid input");
-    vector<Mat> _lines;
-    _lines.reserve(lines.size());
-    for (vector<Vec3f>::iterator it=lines.begin(); it<lines.end(); ++it)
-        _lines.push_back(Mat(*it));
-
-    plhs[0] = MxArray(_lines);
+        mexErrMsgIdAndTxt("mexopencv:error", "Invalid points argument");
 }

@@ -1,32 +1,37 @@
 classdef BOWKMeansTrainer < handle
-    %BOWKMEANSTRAINER kmeans-based class to train visual vocabulary using the bag of visual words approach
+    %BOWKMEANSTRAINER  KMeans-based class to train visual vocabulary using the bag of visual words approach
     %
-    % kmeans-based class for training the bag of visual words vocabulary
-    % from a set of descriptors. For details, see, for example, Visual
-    % Categorization with Bags of Keypoints by Gabriella Csurka,
-    % Christopher R. Dance, Lixin Fan, Jutta Willamowski, Cedric Bray,
-    % 2004.
-    % 
-    % The basic usage is the following:
+    % kmeans-based class for training the *bag of visual words* vocabulary
+    % from a set of descriptors.
     %
-    %    trainer = cv.BOWKMeansTrainer();
+    % ## Example
+    %
+    %    % create bag of visual words
+    %    trainer = cv.BOWKMeansTrainer(K);
     %    dictionary = trainer.cluster(train_descs);
+    %
+    %    % Compute histogram of visual word occurrences of an image
     %    extractor = cv.BOWImgDescriptorExtractor('SIFT','BruteForce');
-    %    extractor.setVocabulary(dictionary);
-    %    descs = extractor.compute(im,keypoints);
+    %    extractor.Vocabulary = dictionary;
+    %    descs = extractor.compute(im, keypoints);
     %
-    % See also cv.BOWKMeansTrainer.BOWKMeansTrainer
-    % cv.BOWKMeansTrainer.cluster cv.BOWImgDescriptorExtractor
+    % ## References
+    % > "Visual Categorization with Bags of Keypoints" by
+    % > Gabriella Csurka, Christopher R. Dance, Lixin Fan, Jutta Willamowski,
+    % > Cedric Bray, 2004.
     %
-    
+    % See also: cv.BOWKMeansTrainer.BOWKMeansTrainer,
+    %  cv.BOWImgDescriptorExtractor, bagOfFeatures
+    %
+
     properties (SetAccess = private)
         % Object ID
         id
     end
-    
+
     methods
         function this = BOWKMeansTrainer(dictionarySize, varargin)
-            %BOWKMEANSTRAINER Create a new BOWKMeansTrainer
+            %BOWKMEANSTRAINER  The constructor
             %
             %    trainer = cv.BOWKMeansTrainer(dictionarySize)
             %    [...] = cv.BOWKMeansTrainer(...,'OptionName', optionValue, ...)
@@ -34,92 +39,101 @@ classdef BOWKMeansTrainer < handle
             % ## Input
             % * __dictionarySize__ Number of clusters.
             %
-            % ## Output
-            % * __trainer__ Created BOWKMeansTrainer object
-            %
             % ## Options
-            % * __Criteria__ The algorithm termination criteria, that is, the maximum
-            %        number of iterations and/or the desired accuracy. The accuracy is
-            %        specified as criteria.epsilon. As soon as each of the cluster
-            %        centers moves by less than criteria.epsilon on some iteration, the
-            %        algorithm stops.
-            % * __Attempts__ The number of times the algorithm is executed using
-            %        different initial labelings. The algorithm returns the labels that
-            %        yield the best compactness. default 3.
-            % * __Initialization__ Method to initialize seeds. One of the followings:
-            %     * 'Random'  Select random initial centers in each attempt. (default)
-            %     * 'PP'      Use kmeans++ center initialization by Arthur and
-            %                 Vassilvitskii [Arthur2007].
+            % * __Criteria__ The algorithm termination criteria, that is, the
+            %       maximum number of iterations and/or the desired accuracy.
+            %       The accuracy is specified as `Criteria.epsilon`. As soon
+            %       as each of the cluster centers moves by less than
+            %       `Criteria.epsilon` on some iteration, the algorithm stops.
+            %       default `struct('type','Count+EPS', 'maxCount',100, 'epsilon',eps('float'))`
+            % * __Attempts__ The number of times the algorithm is executed
+            %       using different initial labelings. The algorithm returns
+            %       the labels that yield the best compactness. default 3.
+            % * __Initialization__ Method to initialize seeds, default 'PP'.
+            %       One of the followings:
+            %       * __Random__ Select random initial centers in each attempt.
+            %       * __PP__ Use kmeans++ center initialization by
+            %             Arthur and Vassilvitskii [Arthur2007].
             %
-            % See also cv.BOWKMeansTrainer cv.kmeans
+            % See also: cv.BOWKMeansTrainer, cv.kmeans
             %
             this.id = BOWKMeansTrainer_(0, 'new', dictionarySize, varargin{:});
         end
-        
+
         function delete(this)
-            %DELETE Destructor
+            %DELETE  Destructor
             %
-            % See also cv.BOWKMeansTrainer
+            %    trainer.delete()
             %
+            % See also: cv.BOWKMeansTrainer
+            %
+            if isempty(this.id), return; end
             BOWKMeansTrainer_(this.id, 'delete');
         end
-        
-        function s = getDescriptors(this)
-            %GETDESCRIPTORS Returns a training set of descriptors
+
+        function descs = getDescriptors(this)
+            %GETDESCRIPTORS  Returns a training set of descriptors
             %
-            %    s = trainer.getDescriptors()
+            %    descs = trainer.getDescriptors()
             %
-            % s is row vectors
+            % ## Output
+            % * __descs__ a cell array of descriptors
             %
-            % See also cv.BOWKMeansTrainer
+            % See also: cv.BOWKMeansTrainer.descriptorsCount
             %
-            s = BOWKMeansTrainer_(this.id, 'getDescriptors');
+            descs = BOWKMeansTrainer_(this.id, 'getDescriptors');
         end
-        
-        function s = descriptorsCount(this)
-            %DESCRIPTORSCOUNT Returns the count of all descriptors stored in the training set
+
+        function count = descriptorsCount(this)
+            %DESCRIPTORSCOUNT  Returns the count of all descriptors stored in the training set
             %
-            %    s = trainer.descriptorsCount()
+            %    count = trainer.descriptorsCount()
             %
-            % s is a numeric value
+            % ## Output
+            % * __count__ is a numeric value
             %
-            % See also cv.BOWKMeansTrainer
+            % See also: cv.BOWKMeansTrainer.add
             %
-            s = BOWKMeansTrainer_(this.id, 'descriptorsCount');
+            count = BOWKMeansTrainer_(this.id, 'descriptorsCount');
         end
-        
+
         function add(this, descs)
-            %ADD Adds descriptors to a training set
+            %ADD  Adds descriptors to a training set
             %
             %    trainer.add(descs)
             %
             % ## Input
             % * __descs__ Descriptors to add to a training set. Each row of
-            %     the descriptors matrix is a descriptor.
+            %       the descriptors matrix is a descriptor.
             %
-            % See also cv.BOWKMeansTrainer
+            % The training set is clustered using cluster method to construct
+            % the vocabulary.
+            %
+            % See also: cv.BOWKMeansTrainer.cluster
             %
             BOWKMeansTrainer_(this.id, 'add', descs);
         end
-        
+
         function clear(this)
-            %CLEAR Clear training descriptors
+            %CLEAR  Clear training descriptors
             %
-            % See also cv.BOWKMeansTrainer
+            %    trainer.clear()
+            %
+            % See also: cv.BOWKMeansTrainer.add
             %
             BOWKMeansTrainer_(this.id, 'clear');
         end
-        
+
         function centers = cluster(this, descs)
-            %CLUSTER Clusters train descriptors
+            %CLUSTER  Clusters train descriptors
             %
             %    centers = trainer.cluster()
             %    centers = trainer.cluster(descs)
             %
             % ## Input
             % * __descs__ Descriptors to cluster. Each row of the
-            %     descriptors matrix is a descriptor. Descriptors are not
-            %     added to the inner train descriptor set.
+            %       descriptors matrix is a descriptor. Descriptors are not
+            %       added to the inner train descriptor set.
             %
             % ## Output
             % * __centers__ Row vectors of vocabulary descriptors.
@@ -129,7 +143,7 @@ classdef BOWKMeansTrainer < handle
             % train descriptors stored in the object are clustered. In the
             % second variant, input descriptors are clustered.
             %
-            % See also cv.BOWKMeansTrainer cv.BOWKMeansTrainer.add cv.kmeans
+            % See also: cv.BOWKMeansTrainer.add, cv.kmeans
             %
             if (nargin > 1)
                 centers = BOWKMeansTrainer_(this.id, 'cluster', descs);
@@ -138,6 +152,5 @@ classdef BOWKMeansTrainer < handle
             end
         end
     end
-    
-end
 
+end

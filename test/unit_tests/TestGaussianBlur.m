@@ -1,30 +1,31 @@
 classdef TestGaussianBlur
     %TestGaussianBlur
+
     properties (Constant)
-        img = uint8([...
-            0 0 0 0 0 0 0 0 0 0;...
-            0 0 0 0 0 0 0 0 0 0;...
-            0 0 0 0 0 0 0 0 0 0;...
-            0 0 0 1 1 1 0 0 0 0;...
-            0 0 0 1 1 1 0 0 0 0;...
-            0 0 0 1 1 1 0 0 0 0;...
-            0 0 0 0 0 0 0 0 0 0;...
-            0 0 0 0 0 0 0 0 0 0;...
-            0 0 0 0 0 0 0 0 0 0;...
-            0 0 0 0 0 0 0 0 0 0;...
-            ]);
+        im = fullfile(mexopencv.root(),'test','blox.jpg');
     end
-    
+
     methods (Static)
         function test_1
-            result = cv.GaussianBlur(TestGaussianBlur.img);
+            img = imread(TestGaussianBlur.im);
+            result = cv.GaussianBlur(img);
+            validateattributes(result, {class(img)}, {'size',size(img)});
         end
-        
+
         function test_2
-            result = cv.GaussianBlur(TestGaussianBlur.img, 'KSize', [5,7]);
+            img = imread(TestGaussianBlur.im);
+            result = cv.GaussianBlur(img, 'KSize',[5 7]);
+            validateattributes(result, {class(img)}, {'size',size(img)});
         end
-        
-        function test_error_1
+
+        function test_3
+            img = imread(TestGaussianBlur.im);
+            result = cv.GaussianBlur(img, 'KSize',[5 7], ...
+                'SigmaX',1.1, 'SigmaY',1.3, 'BorderType','Default');
+            validateattributes(result, {class(img)}, {'size',size(img)});
+        end
+
+        function test_error_argnum
             try
                 cv.GaussianBlur();
                 throw('UnitTest:Fail');
@@ -33,6 +34,5 @@ classdef TestGaussianBlur
             end
         end
     end
-    
-end
 
+end

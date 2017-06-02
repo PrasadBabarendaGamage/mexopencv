@@ -1,26 +1,32 @@
 classdef TestScharr
     %TestScharr
+
     properties (Constant)
-        img = uint8([...
-            0 0 0 0 0 0 0 0 0 0;...
-            0 0 0 0 0 0 0 0 0 0;...
-            0 0 0 0 0 0 0 0 0 0;...
-            0 0 0 1 1 1 0 0 0 0;...
-            0 0 0 1 1 1 0 0 0 0;...
-            0 0 0 1 1 1 0 0 0 0;...
-            0 0 0 0 0 0 0 0 0 0;...
-            0 0 0 0 0 0 0 0 0 0;...
-            0 0 0 0 0 0 0 0 0 0;...
-            0 0 0 0 0 0 0 0 0 0;...
-            ]);
+        im = fullfile(mexopencv.root(),'test','blox.jpg');
     end
-    
+
     methods (Static)
         function test_1
-            result = cv.Scharr(TestScharr.img);
+            img = imread(TestScharr.im);
+            result = cv.Scharr(img);
+            validateattributes(result, {class(img)}, {'size',size(img)});
         end
-        
-        function test_error_1
+
+        function test_2
+            img = imread(TestScharr.im);
+            result = cv.Scharr(img, ...
+                'XOrder',0, 'YOrder',1, 'Scale',1, 'Delta',0, ...
+                'BorderType','Default', 'DDepth','double');
+            validateattributes(result, {'double'}, {'size',size(img)});
+        end
+
+        function test_3
+            img = imread(fullfile(mexopencv.root(),'test','fruits.jpg'));
+            result = cv.Scharr(img);
+            validateattributes(result, {class(img)}, {'size',size(img)});
+        end
+
+        function test_error_argnum
             try
                 cv.Scharr();
                 throw('UnitTest:Fail');
@@ -29,6 +35,5 @@ classdef TestScharr
             end
         end
     end
-    
-end
 
+end

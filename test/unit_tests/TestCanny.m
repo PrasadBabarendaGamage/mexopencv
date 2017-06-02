@@ -1,19 +1,30 @@
 classdef TestCanny
     %TestCanny
+
     properties (Constant)
-        img = rgb2gray(imread(fullfile(mexopencv.root(),'test','img001.jpg')));
+        im = fullfile(mexopencv.root(),'test','img001.jpg');
     end
-    
+
     methods (Static)
         function test_1
-            result = cv.Canny(TestCanny.img, 192);
+            img = cv.imread(TestCanny.im, 'Grayscale',true, 'ReduceScale',2);
+            [h,w,~] = size(img);
+            result = cv.Canny(img, 192);
+            validateattributes(result, {class(img)}, {'2d', 'size',[h,w]});
         end
-        
+
         function test_2
-            result = cv.Canny(TestCanny.img, [192,96]);
+            img = cv.imread(TestCanny.im, 'Grayscale',true, 'ReduceScale',2);
+            result = cv.Canny(img, 192);
+            result = cv.Canny(img, [96,192]);
         end
-        
-        function test_error_1
+
+        function test_3
+            img = cv.imread(TestCanny.im, 'Grayscale',true, 'ReduceScale',2);
+            result = cv.Canny(img, 192, 'ApertureSize',5, 'L2Gradient',true);
+        end
+
+        function test_error_argnum
             try
                 cv.Canny();
                 throw('UnitTest:Fail');
@@ -22,6 +33,5 @@ classdef TestCanny
             end
         end
     end
-    
-end
 
+end

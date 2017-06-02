@@ -1,51 +1,13 @@
 /**
  * @file calibrateCamera.cpp
- * @brief mex interface for calibrateCamera
+ * @brief mex interface for cv::calibrateCamera
+ * @ingroup calib3d
  * @author Kota Yamaguchi
  * @date 2011
  */
 #include "mexopencv.hpp"
 using namespace std;
 using namespace cv;
-
-/// Conversion to vector<vector<Point_<T> > >
-template <typename T>
-vector<vector<Point_<T> > > MxArrayToVecVecPt(MxArray& arr)
-{
-    vector<MxArray> va = arr.toVector<MxArray>();
-    vector<vector<Point_<T> > > vvp;
-    vvp.reserve(va.size());
-    for (vector<MxArray>::iterator it=va.begin(); it<va.end(); ++it)
-    {
-        vector<MxArray> v = (*it).toVector<MxArray>();
-        vector<Point_<T> > vp;
-        vp.reserve(v.size());
-        for (vector<MxArray>::iterator jt=v.begin(); jt<v.end(); ++jt)
-            vp.push_back((*jt).toPoint_<T>());
-        vvp.push_back(vp);
-    }
-    return vvp;
-}
-
-/// Conversion to vector<vector<Point3_<T> > >
-template <typename T>
-vector<vector<Point3_<T> > > MxArrayToVecVecPt3(MxArray& arr)
-{
-    vector<MxArray> va = arr.toVector<MxArray>();
-    vector<vector<Point3_<T> > > vvp;
-    vvp.reserve(va.size());
-    for (vector<MxArray>::iterator it=va.begin(); it<va.end(); ++it)
-    {
-        vector<MxArray> v = (*it).toVector<MxArray>();
-        vector<Point3_<T> > vp;
-        vp.reserve(v.size());
-        for (vector<MxArray>::iterator jt=v.begin(); jt<v.end(); ++jt)
-            vp.push_back((*jt).toPoint3_<T>());
-        vvp.push_back(vp);
-    }
-    return vvp;
-}
-
 
 /**
  * Main entry called from Matlab
@@ -54,68 +16,92 @@ vector<vector<Point3_<T> > > MxArrayToVecVecPt3(MxArray& arr)
  * @param nrhs number of right-hand-side arguments
  * @param prhs pointers to mxArrays in the right-hand-side
  */
-void mexFunction( int nlhs, mxArray *plhs[],
-                  int nrhs, const mxArray *prhs[] )
+void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
 {
     // Check the number of arguments
-    if (nrhs<3 || ((nrhs%2)!=1) || nlhs>5)
-        mexErrMsgIdAndTxt("mexopencv:error","Wrong number of arguments");
-    
+    nargchk(nrhs>=3 && (nrhs%2)==1 && nlhs<=8);
+
     // Argument vector
-    vector<MxArray> rhs(prhs,prhs+nrhs);
-    
-    vector<vector<Point3f> > objectPoints = MxArrayToVecVecPt3<float>(rhs[0]);
-    vector<vector<Point2f> > imagePoints = MxArrayToVecVecPt<float>(rhs[1]);
-    Size imageSize = rhs[2].toSize();
-    Mat cameraMatrix = Mat::eye(3,3,CV_32FC1);
-    Mat distCoeffs;
-    vector<Mat> rvecs;
-    vector<Mat> tvecs;
-    
+    vector<MxArray> rhs(prhs, prhs+nrhs);
+
     // Option processing
-    int flags=0;
+    Mat cameraMatrix, distCoeffs;
+    int flags = 0;
+    TermCriteria criteria(TermCriteria::COUNT+TermCriteria::EPS, 30, DBL_EPSILON);
     for (int i=3; i<nrhs; i+=2) {
-        string key = rhs[i].toString();
-        if (key=="CameraMatrix")
-            cameraMatrix = rhs[i+1].toMat(CV_32F);
-        else if (key=="DistCoeffs")
-            distCoeffs = rhs[i+1].toMat(CV_32F);
-        else if (key=="UseIntrinsicGuess" && rhs[i+1].toBool())
-            flags |= CV_CALIB_USE_INTRINSIC_GUESS;
-        else if (key=="FixPrincipalPoint" && rhs[i+1].toBool())
-            flags |= CV_CALIB_FIX_PRINCIPAL_POINT;
-        else if (key=="FixAspectRatio" && rhs[i+1].toBool())
-            flags |= CV_CALIB_FIX_ASPECT_RATIO;
-        else if (key=="ZeroTangentDist" && rhs[i+1].toBool())
-            flags |= CV_CALIB_ZERO_TANGENT_DIST;
-        else if (key=="FixK1" && rhs[i+1].toBool())
-            flags |= CV_CALIB_FIX_K1;
-        else if (key=="FixK2" && rhs[i+1].toBool())
-            flags |= CV_CALIB_FIX_K2;
-        else if (key=="FixK3" && rhs[i+1].toBool())
-            flags |= CV_CALIB_FIX_K3;
-        else if (key=="FixK4" && rhs[i+1].toBool())
-            flags |= CV_CALIB_FIX_K4;
-        else if (key=="FixK5" && rhs[i+1].toBool())
-            flags |= CV_CALIB_FIX_K5;
-        else if (key=="FixK6" && rhs[i+1].toBool())
-            flags |= CV_CALIB_FIX_K6;
-        else if (key=="RationalModel" && rhs[i+1].toBool())
-            flags |= CV_CALIB_RATIONAL_MODEL;
+        string key(rhs[i].toString());
+        if (key == "CameraMatrix")
+            cameraMatrix = rhs[i+1].toMat(CV_64F);
+        else if (key == "DistCoeffs")
+            distCoeffs = rhs[i+1].toMat(CV_64F);
+        else if (key == "UseIntrinsicGuess")
+            UPDATE_FLAG(flags, rhs[i+1].toBool(), cv::CALIB_USE_INTRINSIC_GUESS);
+        else if (key == "FixPrincipalPoint")
+            UPDATE_FLAG(flags, rhs[i+1].toBool(), cv::CALIB_FIX_PRINCIPAL_POINT);
+        else if (key == "FixAspectRatio")
+            UPDATE_FLAG(flags, rhs[i+1].toBool(), cv::CALIB_FIX_ASPECT_RATIO);
+        else if (key == "ZeroTangentDist")
+            UPDATE_FLAG(flags, rhs[i+1].toBool(), cv::CALIB_ZERO_TANGENT_DIST);
+        else if (key == "FixK1")
+            UPDATE_FLAG(flags, rhs[i+1].toBool(), cv::CALIB_FIX_K1);
+        else if (key == "FixK2")
+            UPDATE_FLAG(flags, rhs[i+1].toBool(), cv::CALIB_FIX_K2);
+        else if (key == "FixK3")
+            UPDATE_FLAG(flags, rhs[i+1].toBool(), cv::CALIB_FIX_K3);
+        else if (key == "FixK4")
+            UPDATE_FLAG(flags, rhs[i+1].toBool(), cv::CALIB_FIX_K4);
+        else if (key == "FixK5")
+            UPDATE_FLAG(flags, rhs[i+1].toBool(), cv::CALIB_FIX_K5);
+        else if (key == "FixK6")
+            UPDATE_FLAG(flags, rhs[i+1].toBool(), cv::CALIB_FIX_K6);
+        else if (key == "RationalModel")
+            UPDATE_FLAG(flags, rhs[i+1].toBool(), cv::CALIB_RATIONAL_MODEL);
+        else if (key == "ThinPrismModel")
+            UPDATE_FLAG(flags, rhs[i+1].toBool(), cv::CALIB_THIN_PRISM_MODEL);
+        else if (key == "FixS1S2S3S4")
+            UPDATE_FLAG(flags, rhs[i+1].toBool(), cv::CALIB_FIX_S1_S2_S3_S4);
+        else if (key == "TiltedModel")
+            UPDATE_FLAG(flags, rhs[i+1].toBool(), cv::CALIB_TILTED_MODEL);
+        else if (key == "FixTauXTauY")
+            UPDATE_FLAG(flags, rhs[i+1].toBool(), cv::CALIB_FIX_TAUX_TAUY);
+        else if (key == "UseLU")
+            UPDATE_FLAG(flags, rhs[i+1].toBool(), cv::CALIB_USE_LU);
+        else if (key == "UseQR")
+            UPDATE_FLAG(flags, rhs[i+1].toBool(), cv::CALIB_USE_QR);
+        else if (key == "Criteria")
+            criteria = rhs[i+1].toTermCriteria();
         else
-            mexErrMsgIdAndTxt("mexopencv:error","Unrecognized option");
+            mexErrMsgIdAndTxt("mexopencv:error",
+                "Unrecognized option %s", key.c_str());
     }
-    
+
     // Process
-    double d = calibrateCamera(objectPoints, imagePoints, imageSize,
-        cameraMatrix, distCoeffs, rvecs, tvecs, flags);
+    vector<vector<Point3f> > objectPoints(MxArrayToVectorVectorPoint3<float>(rhs[0]));
+    vector<vector<Point2f> > imagePoints(MxArrayToVectorVectorPoint<float>(rhs[1]));
+    Size imageSize(rhs[2].toSize());
+    vector<Mat> rvecs, tvecs;
+    Mat stdDeviationsIntrinsics, stdDeviationsExtrinsics, perViewErrors;
+    double reprojErr = calibrateCamera(
+        objectPoints, imagePoints, imageSize, cameraMatrix, distCoeffs,
+        (nlhs>3 ? rvecs : noArray()),
+        (nlhs>4 ? tvecs : noArray()),
+        (nlhs>5 ? stdDeviationsIntrinsics : noArray()),
+        (nlhs>6 ? stdDeviationsExtrinsics : noArray()),
+        (nlhs>7 ? perViewErrors : noArray()),
+        flags, criteria);
     plhs[0] = MxArray(cameraMatrix);
     if (nlhs>1)
         plhs[1] = MxArray(distCoeffs);
     if (nlhs>2)
-        plhs[2] = MxArray(d);
+        plhs[2] = MxArray(reprojErr);
     if (nlhs>3)
         plhs[3] = MxArray(rvecs);
     if (nlhs>4)
         plhs[4] = MxArray(tvecs);
+    if (nlhs>5)
+        plhs[5] = MxArray(stdDeviationsIntrinsics);
+    if (nlhs>6)
+        plhs[6] = MxArray(stdDeviationsExtrinsics);
+    if (nlhs>7)
+        plhs[7] = MxArray(perViewErrors);
 }

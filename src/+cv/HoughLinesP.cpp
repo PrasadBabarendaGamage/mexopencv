@@ -1,6 +1,7 @@
 /**
  * @file HoughLinesP.cpp
- * @brief mex interface for HoughLinesP
+ * @brief mex interface for cv::HoughLinesP
+ * @ingroup imgproc
  * @author Kota Yamaguchi
  * @date 2011
  */
@@ -15,42 +16,40 @@ using namespace cv;
  * @param nrhs number of right-hand-side arguments
  * @param prhs pointers to mxArrays in the right-hand-side
  */
-void mexFunction( int nlhs, mxArray *plhs[],
-                  int nrhs, const mxArray *prhs[] )
+void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
 {
     // Check the number of arguments
-    if (nrhs<1 || ((nrhs%2)!=1) || nlhs>1)
-        mexErrMsgIdAndTxt("mexopencv:error","Wrong number of arguments");
-    
+    nargchk(nrhs>=1 && (nrhs%2)==1 && nlhs<=1);
+
     // Argument vector
-    vector<MxArray> rhs(prhs,prhs+nrhs);
-    Mat image(rhs[0].toMat(CV_8U));
-    vector<Vec4i> lines;
-    double rho=1;
-    double theta=CV_PI/180;
-    int threshold=80;
-    double minLineLength=0;
-    double maxLineGap=0;
+    vector<MxArray> rhs(prhs, prhs+nrhs);
+
+    // Option processing
+    double rho = 1;
+    double theta = CV_PI/180;
+    int threshold = 80;
+    double minLineLength = 0;
+    double maxLineGap = 0;
     for (int i=1; i<nrhs; i+=2) {
-        string key = rhs[i].toString();
-        if (key=="Rho")
+        string key(rhs[i].toString());
+        if (key == "Rho")
             rho = rhs[i+1].toDouble();
-        else if (key=="Theta")
+        else if (key == "Theta")
             theta = rhs[i+1].toDouble();
-        else if (key=="Threshold")
+        else if (key == "Threshold")
             threshold = rhs[i+1].toInt();
-        else if (key=="MinLineLength")
+        else if (key == "MinLineLength")
             minLineLength = rhs[i+1].toDouble();
-        else if (key=="MaxLineGap")
+        else if (key == "MaxLineGap")
             maxLineGap = rhs[i+1].toDouble();
         else
-            mexErrMsgIdAndTxt("mexopencv:error","Unrecognized option");
+            mexErrMsgIdAndTxt("mexopencv:error",
+                "Unrecognized option %s", key.c_str());
     }
-    
+
     // Process
+    Mat image(rhs[0].toMat(CV_8U));
+    vector<Vec4i> lines;
     HoughLinesP(image, lines, rho, theta, threshold, minLineLength, maxLineGap);
-    vector<Mat> vl(lines.size());
-    for (int i=0;i<vl.size();++i)
-        vl[i] = Mat(1,4,CV_32SC1,&lines[i][0]);
-    plhs[0] = MxArray(vl);
+    plhs[0] = MxArray(lines);
 }

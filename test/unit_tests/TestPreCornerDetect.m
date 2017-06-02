@@ -1,15 +1,26 @@
 classdef TestPreCornerDetect
     %TestPreCornerDetect
+
     properties (Constant)
-        img = rgb2gray(imread(fullfile(mexopencv.root(),'test','img001.jpg')));
+        im = fullfile(mexopencv.root(),'test','img001.jpg');
     end
-    
+
     methods (Static)
         function test_1
-            result = cv.preCornerDetect(TestPreCornerDetect.img);
+            img = cv.imread(TestPreCornerDetect.im, 'Grayscale',true);
+            result = cv.preCornerDetect(img);
+            validateattributes(result, {'single'}, ...
+                {'real', '2d', 'size',size(img)});
         end
-        
-        function test_error_1
+
+        function test_2
+            img = cv.imread(TestPreCornerDetect.im, 'Grayscale',true);
+            result = cv.preCornerDetect(double(img)/255);
+            validateattributes(result, {'single'}, ...
+                {'real', '2d', 'size',size(img)});
+        end
+
+        function test_error_argnum
             try
                 cv.preCornerDetect();
                 throw('UnitTest:Fail');
@@ -18,6 +29,5 @@ classdef TestPreCornerDetect
             end
         end
     end
-    
-end
 
+end

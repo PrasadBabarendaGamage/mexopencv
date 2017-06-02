@@ -1,19 +1,21 @@
 classdef TestPyrMeanShiftFiltering
     %TestPyrMeanShiftFiltering
-    properties (Constant)
-        img = imread(fullfile(mexopencv.root(),'test','img001.jpg'));
-    end
-    
+
     methods (Static)
         function test_1
-            result = cv.pyrMeanShiftFiltering(TestPyrMeanShiftFiltering.img);
+            img = imread(fullfile(mexopencv.root(),'test','img001.jpg'));
+            result = cv.pyrMeanShiftFiltering(img);
+            validateattributes(result, {class(img)}, {'size',size(img)});
         end
-        
+
         function test_2
-            result = cv.pyrMeanShiftFiltering(TestPyrMeanShiftFiltering.img, 'SP', 7);
+            img = imread(fullfile(mexopencv.root(),'test','img001.jpg'));
+            result = cv.pyrMeanShiftFiltering(img, ...
+                'SP',5, 'SR',10, 'MaxLevel',1);
+            validateattributes(result, {class(img)}, {'size',size(img)});
         end
-        
-        function test_error_1
+
+        function test_error_argnum
             try
                 cv.pyrMeanShiftFiltering();
                 throw('UnitTest:Fail');
@@ -22,6 +24,5 @@ classdef TestPyrMeanShiftFiltering
             end
         end
     end
-    
-end
 
+end

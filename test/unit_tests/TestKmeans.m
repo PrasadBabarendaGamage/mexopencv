@@ -1,15 +1,28 @@
 classdef TestKmeans
     %TestKmeans
-    properties (Constant)
-    end
-    
+
     methods (Static)
         function test_1
-            X = randn(100,3);
+            X = randn(50,3);
             [labels,centers,d] = cv.kmeans(X,5);
+            assert(isvector(labels) && numel(labels)==50);
+            assert(ismatrix(centers) && isequal(size(centers), [5 3]));
+            assert(isscalar(d));
         end
-        
-        function test_error_1
+
+        function test_2
+            X = randn(50,3);
+            [labels,centers] = cv.kmeans(X, 5, 'Initialization','PP', 'Attempts',10, ...
+                'Criteria',struct('type','Count+EPS', 'maxCount',100, 'epsilon',1e-6));
+        end
+
+        function test_3
+            X = [randn(50,3)-1; randn(50,3)+1];
+            labels0 = [ones(50,1)*0; ones(50,1)*1];
+            [labels,centers] = cv.kmeans(X, 2, 'InitialLabels',labels0);
+        end
+
+        function test_error_argnum
             try
                 cv.kmeans();
                 throw('UnitTest:Fail');
@@ -18,6 +31,5 @@ classdef TestKmeans
             end
         end
     end
-    
-end
 
+end

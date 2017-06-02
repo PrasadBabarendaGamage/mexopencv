@@ -1,15 +1,20 @@
 classdef TestArcLength
     %TestArcLength
-    properties (Constant)
-        curve = {[0,0],[1,0],[2,2],[3,3],[3,4]};
-    end
-    
+
     methods (Static)
         function test_1
-            len = cv.arcLength(TestArcLength.curve,'Closed',false);
+            curve = {[0 0] ,[1 0] ,[2 2] ,[3 3] ,[3 4]};
+            len = cv.arcLength(curve, 'Closed',false);
+            validateattributes(len, {'double'}, {'scalar'});
         end
-        
-        function test_error_1
+
+        function test_2
+            curve = [0 0; 1 0; 2 2; 3 3; 3 4];
+            len = cv.arcLength(curve, 'Closed',true);
+            validateattributes(len, {'double'}, {'scalar'});
+        end
+
+        function test_error_argnum
             try
                 cv.arcLength();
                 throw('UnitTest:Fail');
@@ -18,6 +23,5 @@ classdef TestArcLength
             end
         end
     end
-    
-end
 
+end

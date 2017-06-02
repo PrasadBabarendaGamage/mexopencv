@@ -1,15 +1,28 @@
 classdef TestCornerEigenValsAndVecs
     %TestCornerEigenValsAndVecs
+
     properties (Constant)
-        img = rgb2gray(imread(fullfile(mexopencv.root(),'test','img001.jpg')));
+        im = fullfile(mexopencv.root(),'test','img001.jpg');
     end
-    
+
     methods (Static)
-        function test_1
-            result = cv.cornerEigenValsAndVecs(TestCornerEigenValsAndVecs.img);
+        function test_8bit
+            img = cv.imread(TestCornerEigenValsAndVecs.im, ...
+                'Grayscale',true, 'ReduceScale',2);
+            result = cv.cornerEigenValsAndVecs(img);
+            validateattributes(result, {'single'}, ...
+                {'ndims',3, 'size',[size(img) 6]});
         end
-        
-        function test_error_1
+
+        function test_float
+            img = cv.imread(TestCornerEigenValsAndVecs.im, ...
+                'Grayscale',true, 'ReduceScale',2);
+            result = cv.cornerEigenValsAndVecs(single(img)/255);
+            validateattributes(result, {'single'}, ...
+                {'ndims',3, 'size',[size(img) 6]});
+        end
+
+        function test_error_argnum
             try
                 cv.cornerEigenValsAndVecs();
                 throw('UnitTest:Fail');
@@ -18,6 +31,5 @@ classdef TestCornerEigenValsAndVecs
             end
         end
     end
-    
-end
 
+end

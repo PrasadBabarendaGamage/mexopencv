@@ -1,15 +1,26 @@
 classdef TestCornerHarris
     %TestCornerHarris
+
     properties (Constant)
-        img = rgb2gray(imread(fullfile(mexopencv.root(),'test','img001.jpg')));
+        im = fullfile(mexopencv.root(),'test','img001.jpg');
     end
-    
+
     methods (Static)
-        function test_1
-            result = cv.cornerHarris(TestCornerHarris.img);
+        function test_8bit
+            img = cv.imread(TestCornerHarris.im, ...
+                'Grayscale',true, 'ReduceScale',2);
+            result = cv.cornerHarris(img);
+            validateattributes(result, {'single'}, {'size',size(img)});
         end
-        
-        function test_error_1
+
+        function test_float
+            img = cv.imread(TestCornerHarris.im, ...
+                'Grayscale',true, 'ReduceScale',2);
+            result = cv.cornerHarris(single(img)/255);
+            validateattributes(result, {'single'}, {'size',size(img)});
+        end
+
+        function test_error_argnum
             try
                 cv.cornerHarris();
                 throw('UnitTest:Fail');
@@ -18,6 +29,5 @@ classdef TestCornerHarris
             end
         end
     end
-    
-end
 
+end

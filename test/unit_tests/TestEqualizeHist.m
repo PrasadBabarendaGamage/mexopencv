@@ -1,26 +1,15 @@
 classdef TestEqualizeHist
     %TestEqualizeHist
-    properties (Constant)
-        img = uint8([...
-            0 0 0 0 0 0 0 0 0 0;...
-            0 0 0 0 0 0 0 0 0 0;...
-            0 0 0 0 0 0 0 0 0 0;...
-            0 0 0 1 1 1 0 0 0 0;...
-            0 0 0 1 1 1 0 0 0 0;...
-            0 0 0 1 1 1 0 0 0 0;...
-            0 0 0 0 0 0 0 0 0 0;...
-            0 0 0 0 0 0 0 0 0 0;...
-            0 0 0 0 0 0 0 0 0 0;...
-            0 0 0 0 0 0 0 0 0 0;...
-            ]);
-    end
-    
+
     methods (Static)
         function test_1
-            result = cv.equalizeHist(TestErode.img);
+            img = cv.imread(fullfile(mexopencv.root(),'test','left01.jpg'), ...
+                'Grayscale',true, 'ReduceScale',2);
+            dst = cv.equalizeHist(img);
+            validateattributes(dst, {class(img)}, {'size',size(img)});
         end
-        
-        function test_error_1
+
+        function test_error_argnum
             try
                 cv.equalizeHist();
                 throw('UnitTest:Fail');
@@ -29,6 +18,5 @@ classdef TestEqualizeHist
             end
         end
     end
-    
-end
 
+end
